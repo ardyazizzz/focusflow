@@ -166,27 +166,24 @@ export function BacklogScreen() {
     const [moved] = reordered.splice(oldIndex, 1)
     reordered.splice(newIndex, 0, moved)
 
-    // Update queue_order for all affected tasks
-    const updates = reordered.map((task, i) => ({
-      id: task.id,
-      queue_order: (i + 1) * 100,
-    }))
+    // Optimistic: update the cache immediately so UI reflects new order
+    const currentTasks = queryClient.getQueryData<Task[]>(['tasks'])
+    if (currentTasks) {
+      const updatedTasks = currentTasks.map(t => {
+        const reorderedIndex = reordered.findIndex(r => r.id === t.id)
+        if (reorderedIndex !== -1) {
+          return { ...t, queue_order: (reorderedIndex + 1) * 100 }
+        }
+        return t
+      })
+      queryClient.setQueryData(['tasks'], updatedTasks)
+    }
 
-    // Only update tasks whose queue_order actually changed
-    const changed = updates.filter(u => {
-      const current = filteredTasks.find(t => t.id === u.id)
-      return current && current.queue_order !== u.queue_order
-    })
-
-    if (changed.length === 0) return
-
-    // Update each changed task
+    // Sync to Supabase in background
+    const changed = reordered.map((task, i) => ({ id: task.id, queue_order: (i + 1) * 100 }))
     for (const { id, queue_order } of changed) {
       await supabase.from('tasks').update({ queue_order }).eq('id', id)
     }
-
-    queryClient.invalidateQueries({ queryKey: ['tasks'] })
-    queryClient.invalidateQueries({ queryKey: ['goals'] })
   }
 
   const updateMutation = useMutation({
