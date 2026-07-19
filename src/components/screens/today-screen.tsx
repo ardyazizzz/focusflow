@@ -102,7 +102,7 @@ async function fetchSettings(): Promise<SettingsData> {
 async function completeTask(taskId: string): Promise<Task> {
   const { data, error } = await supabase
     .from('tasks')
-    .update({ status: 'completed', completedAt: new Date().toISOString() })
+    .update({ status: 'completed', completed_at: new Date().toISOString() })
     .eq('id', taskId)
     .select(TASK_SELECT)
     .single()
@@ -113,7 +113,7 @@ async function completeTask(taskId: string): Promise<Task> {
 async function skipTask(taskId: string): Promise<Task> {
   const { data, error } = await supabase
     .from('tasks')
-    .update({ status: 'pending', completedAt: null })
+    .update({ status: 'pending', completed_at: null })
     .eq('id', taskId)
     .select(TASK_SELECT)
     .single()
