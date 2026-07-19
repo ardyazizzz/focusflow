@@ -105,7 +105,7 @@ export function BacklogScreen() {
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: ['tasks'],
     queryFn: async () => {
-      const { data } = await supabase.from('tasks').select(TASK_SELECT).order('created_at', { ascending: false })
+      const { data } = await supabase.from('tasks').select(TASK_SELECT).order('queue_order', { ascending: true }).order('created_at', { ascending: false })
       return (data ?? []) as unknown as Task[]
     },
     enabled: activeTab === 'backlog',
@@ -537,8 +537,12 @@ function TaskCard({
 
   function handleQueueSave() {
     const val = parseInt(orderInput, 10)
-    if (!isNaN(val) && val > 0 && onQueueChange) {
-      onQueueChange(val * 100)
+    if (onQueueChange) {
+      if (!isNaN(val) && val > 0) {
+        onQueueChange(val * 100)
+      } else {
+        onQueueChange(9999) // 0 or empty = remove from queue
+      }
     }
     setEditingOrder(false)
   }
