@@ -37,6 +37,7 @@ export interface Task {
   deadline: string | null;
   notes: string | null;
   status: string;
+  queue_order: number;
   created_at: string;
   updated_at: string;
   completed_at: string | null;

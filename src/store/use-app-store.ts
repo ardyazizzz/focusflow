@@ -3,7 +3,7 @@ import { create } from 'zustand';
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type AppTab =
-  | 'today'
+  | 'focus'
   | 'capture'
   | 'backlog'
   | 'foundation'
@@ -59,7 +59,7 @@ const INITIAL_POMODORO: PomodoroState = {
 
 export const useAppStore = create<AppState>((set, get) => ({
   // ── State ────────────────────────────────────────────────────────────────
-  activeTab: 'today',
+  activeTab: 'focus',
   pomodoroState: { ...INITIAL_POMODORO },
   coachMessages: [],
   foundationExpandedGoal: null,

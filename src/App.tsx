@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { Sun, PlusCircle, Inbox, LayoutGrid, Sparkles, Settings } from 'lucide-react'
 import { useAppStore, type AppTab } from '@/store/use-app-store'
-import { TodayScreen } from '@/components/screens/today-screen'
+import { FocusScreen } from '@/components/screens/focus-screen'
 import { CaptureScreen } from '@/components/screens/capture-screen'
 import { BacklogScreen } from '@/components/screens/backlog-screen'
 import { FoundationScreen } from '@/components/screens/foundation-screen'
@@ -11,7 +11,7 @@ import CoachScreen from '@/components/screens/coach-screen'
 import SettingsScreen from '@/components/screens/settings-screen'
 
 const tabs: { id: AppTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'today', label: 'Today', icon: <Sun className="h-5 w-5" /> },
+  { id: 'focus', label: 'Focus', icon: <Sun className="h-5 w-5" /> },
   { id: 'capture', label: 'Capture', icon: <PlusCircle className="h-5 w-5" /> },
   { id: 'backlog', label: 'Backlog', icon: <Inbox className="h-5 w-5" /> },
   { id: 'foundation', label: 'Foundation', icon: <LayoutGrid className="h-5 w-5" /> },
@@ -20,7 +20,7 @@ const tabs: { id: AppTab; label: string; icon: React.ReactNode }[] = [
 ]
 
 const screenComponents: Record<AppTab, React.ReactNode> = {
-  today: <TodayScreen />,
+  focus: <FocusScreen />,
   capture: <CaptureScreen />,
   backlog: <BacklogScreen />,
   foundation: <FoundationScreen />,

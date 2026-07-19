@@ -8,7 +8,22 @@ import {
   ChevronDown,
   CalendarDays,
   StickyNote,
+  GripVertical,
 } from 'lucide-react'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -133,6 +148,46 @@ export function BacklogScreen() {
     },
     enabled: activeTab === 'backlog',
   })
+
+  // ── Drag & Drop ───────────────────────────────────────────────
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = filteredTasks.findIndex(t => t.id === active.id)
+    const newIndex = filteredTasks.findIndex(t => t.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = [...filteredTasks]
+    const [moved] = reordered.splice(oldIndex, 1)
+    reordered.splice(newIndex, 0, moved)
+
+    // Update queue_order for all affected tasks
+    const updates = reordered.map((task, i) => ({
+      id: task.id,
+      queue_order: (i + 1) * 100,
+    }))
+
+    // Only update tasks whose queue_order actually changed
+    const changed = updates.filter(u => {
+      const current = filteredTasks.find(t => t.id === u.id)
+      return current && current.queue_order !== u.queue_order
+    })
+
+    if (changed.length === 0) return
+
+    // Update each changed task
+    for (const { id, queue_order } of changed) {
+      await supabase.from('tasks').update({ queue_order }).eq('id', id)
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['tasks'] })
+    queryClient.invalidateQueries({ queryKey: ['goals'] })
+  }
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Task> }) => {
@@ -290,16 +345,22 @@ export function BacklogScreen() {
             </p>
           </div>
         ) : (
-          filteredTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              dimNames={dimNames}
-              onEdit={() => openEdit(task)}
-              onDelete={() => setDeletingTask(task)}
-              formatDate={formatDate}
-            />
-          ))
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={filteredTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {filteredTasks.map((task) => (
+                  <SortableTaskCard
+                    key={task.id}
+                    task={task}
+                    dimNames={dimNames}
+                    onEdit={() => openEdit(task)}
+                    onDelete={() => setDeletingTask(task)}
+                    formatDate={formatDate}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
 
@@ -492,18 +553,44 @@ export function BacklogScreen() {
   )
 }
 
+// ── Sortable Task Card (drag-and-drop wrapper) ──────────────────
+function SortableTaskCard(props: {
+  task: Task
+  dimNames: Record<string, string>
+  onEdit: () => void
+  onDelete: () => void
+  formatDate: (d: string) => string
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: props.task.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className={isDragging ? 'relative z-50' : ''}>
+      <TaskCard {...props} dragHandleProps={{ ...attributes, ...listeners }} />
+    </div>
+  )
+}
+
 function TaskCard({
   task,
   dimNames,
   onEdit,
   onDelete,
   formatDate,
+  dragHandleProps,
 }: {
   task: Task
   dimNames: Record<string, string>
   onEdit: () => void
   onDelete: () => void
   formatDate: (d: string) => string
+  dragHandleProps?: Record<string, unknown>
 }) {
   const isCompleted = task.status === 'completed'
 
@@ -511,6 +598,9 @@ function TaskCard({
     <div className="group flex flex-col gap-2 rounded-lg border border-border/60 bg-card/50 px-4 py-3 transition-colors hover:bg-card">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0 flex-1">
+          <button {...dragHandleProps} className="cursor-grab active:cursor-grabbing touch-none shrink-0 px-0.5">
+            <GripVertical className="size-3.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors" />
+          </button>
           <span
             className={`text-sm font-medium truncate ${isCompleted ? 'text-muted-foreground line-through' : ''}`}
           >

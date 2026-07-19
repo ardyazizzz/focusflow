@@ -44,6 +44,7 @@ CREATE TABLE tasks (
   deadline TIMESTAMPTZ,
   notes TEXT,
   status TEXT NOT NULL DEFAULT 'pending',
+  queue_order INTEGER NOT NULL DEFAULT 9999,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   completed_at TIMESTAMPTZ

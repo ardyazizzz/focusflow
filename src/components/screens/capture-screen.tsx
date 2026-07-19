@@ -138,7 +138,7 @@ export function CaptureScreen() {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       toast.success('Task captured!')
       resetForm()
-      setActiveTab('today')
+      setActiveTab('focus')
     },
     onError: () => {
       toast.error('Failed to create task. Please try again.')

@@ -44,7 +44,7 @@ function priorityColor(label: string): string {
 const TASK_SELECT = '*, goal:goals(id, title), bottleneck:bottlenecks(id, title), priority_option:execution_dimension_options!tasks_priority_option_id_fkey(id, dimension, label, sort_order), impact_option:execution_dimension_options!tasks_impact_option_id_fkey(id, dimension, label, sort_order), clarity_option:execution_dimension_options!tasks_clarity_option_id_fkey(id, dimension, label, sort_order), time_option:execution_dimension_options!tasks_time_option_id_fkey(id, dimension, label, sort_order)'
 
 async function fetchTasks(status?: string): Promise<Task[]> {
-  let query = supabase.from('tasks').select(TASK_SELECT).order('created_at', { ascending: false })
+  let query = supabase.from('tasks').select(TASK_SELECT).order('queue_order', { ascending: true }).order('created_at', { ascending: true })
   if (status) query = query.eq('status', status)
   const { data } = await query
   return (data ?? []) as unknown as Task[]
@@ -121,7 +121,7 @@ async function skipTask(taskId: string): Promise<Task> {
   return data as unknown as Task
 }
 
-export function TodayScreen() {
+export function FocusScreen() {
   const queryClient = useQueryClient()
   const {
     pomodoroState,
