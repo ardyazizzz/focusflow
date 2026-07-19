@@ -547,22 +547,22 @@ function GoalCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium truncate">{goal.title}</span>
-              {goal._count.bottlenecks > 0 && (
+              {(goal._count?.bottlenecks ?? 0) > 0 && (
                 <Badge
                   variant="secondary"
                   className="text-[11px] px-1.5 py-0 h-5 shrink-0"
                 >
-                  {goal._count.bottlenecks}{' '}
-                  {goal._count.bottlenecks === 1 ? 'bottleneck' : 'bottlenecks'}
+                  {(goal._count?.bottlenecks ?? 0)}{' '}
+                  {(goal._count?.bottlenecks ?? 0) === 1 ? 'bottleneck' : 'bottlenecks'}
                 </Badge>
               )}
-              {goal._count.tasks > 0 && (
+              {(goal._count?.tasks ?? 0) > 0 && (
                 <Badge
                   variant="outline"
                   className="text-[11px] px-1.5 py-0 h-5 shrink-0"
                 >
-                  {goal._count.tasks}{' '}
-                  {goal._count.tasks === 1 ? 'task' : 'tasks'}
+                  {(goal._count?.tasks ?? 0)}{' '}
+                  {(goal._count?.tasks ?? 0) === 1 ? 'task' : 'tasks'}
                 </Badge>
               )}
             </div>
