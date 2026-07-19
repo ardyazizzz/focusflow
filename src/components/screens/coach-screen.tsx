@@ -15,7 +15,7 @@ async function fetchCoachContext() {
     await Promise.all([
       supabase.from('goals').select('*, bottlenecks:bottlenecks(count), tasks:tasks(count)').order('created_at', { ascending: false }),
       supabase.from('bottlenecks').select('*, goal:goals(id, title), tasks:tasks(count)').order('created_at', { ascending: false }),
-      supabase.from('tasks').select('*, goal:goals(id, title), bottleneck:bottlenecks(id, title), priority_option:execution_dimension_options(id, dimension, label, sort_order), impact_option:execution_dimension_options(id, dimension, label, sort_order), clarity_option:execution_dimension_options(id, dimension, label, sort_order), time_option:execution_dimension_options(id, dimension, label, sort_order)').order('created_at', { ascending: false }),
+      supabase.from('tasks').select('*, goal:goals(id, title), bottleneck:bottlenecks(id, title), priority_option:execution_dimension_options!tasks_priority_option_id_fkey(id, dimension, label, sort_order), impact_option:execution_dimension_options!tasks_impact_option_id_fkey(id, dimension, label, sort_order), clarity_option:execution_dimension_options!tasks_clarity_option_id_fkey(id, dimension, label, sort_order), time_option:execution_dimension_options!tasks_time_option_id_fkey(id, dimension, label, sort_order)').order('created_at', { ascending: false }),
       supabase.from('execution_dimension_options').select('*').order('dimension', { ascending: true }).order('sort_order', { ascending: true }),
       supabase.from('app_settings').select('*'),
     ])
