@@ -46,20 +46,20 @@ interface GoalWithCount extends Goal {
   _count: { bottlenecks: number; tasks: number }
 }
 
-type GoalRow = { id: string; title: string; description: string | null; createdAt: string; updatedAt: string; bottlenecks?: unknown[]; tasks?: unknown[]; [key: string]: unknown }
+type GoalRow = { id: string; title: string; description: string | null; created_at: string; updated_at: string; bottlenecks?: unknown[]; tasks?: unknown[]; [key: string]: unknown }
 
 async function fetchGoals(): Promise<GoalWithCount[]> {
   const { data } = await supabase
-    .from('Goal')
-    .select('*, bottlenecks:Bottleneck(count), tasks:Task(count)')
-    .order('createdAt', { ascending: false })
+    .from('goals')
+    .select('*, bottlenecks:bottlenecks(count), tasks:tasks(count)')
+    .order('created_at', { ascending: false })
   const raw = (data ?? []) as GoalRow[]
   return raw.map((g: GoalRow) => ({
     id: g.id,
     title: g.title,
     description: g.description ?? null,
-    createdAt: g.createdAt,
-    updatedAt: g.updatedAt,
+    created_at: g.created_at,
+    updated_at: g.updated_at,
     _count: {
       bottlenecks: (g.bottlenecks as [{ count: number }] | undefined)?.[0]?.count ?? 0,
       tasks: (g.tasks as [{ count: number }] | undefined)?.[0]?.count ?? 0,
@@ -96,8 +96,8 @@ export function FoundationScreen() {
   const { data: bottlenecks = [], isLoading: bnsLoading } = useQuery<Bottleneck[]>({
     queryKey: ['bottlenecks'],
     queryFn: async () => {
-      const { data } = await supabase.from('Bottleneck').select('*, goal:Goal(id, title), tasks:Task(count)').order('createdAt', { ascending: false })
-      const raw = (data ?? []) as ({ id: string; title: string; description: string | null; goalId: string; createdAt: string; updatedAt: string; goal: { id: string; title: string }; tasks?: unknown[] })[]
+      const { data } = await supabase.from('bottlenecks').select('*, goal:goals(id, title), tasks:tasks(count)').order('created_at', { ascending: false })
+      const raw = (data ?? []) as ({ id: string; title: string; description: string | null; goal_id: string; createdAt: string; updatedAt: string; goal: { id: string; title: string }; tasks?: unknown[] })[]
       return raw.map(b => ({
         ...b,
         description: b.description ?? null,
@@ -109,7 +109,7 @@ export function FoundationScreen() {
 
   const createGoalMutation = useMutation({
     mutationFn: async (data: { title: string; description: string | null }) => {
-      const { error } = await supabase.from('Goal').insert({ title: data.title, description: data.description })
+      const { error } = await supabase.from('goals').insert({ title: data.title, description: data.description })
       if (error) throw new Error(error.message)
     },
     onSuccess: () => {
@@ -123,7 +123,7 @@ export function FoundationScreen() {
 
   const updateGoalMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { title: string; description: string | null } }) => {
-      const { error } = await supabase.from('Goal').update({ title: data.title, description: data.description }).eq('id', id)
+      const { error } = await supabase.from('goals').update({ title: data.title, description: data.description }).eq('id', id)
       if (error) throw new Error(error.message)
     },
     onSuccess: () => {
@@ -136,13 +136,13 @@ export function FoundationScreen() {
 
   const deleteGoalMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error: taskError } = await supabase.from('Task').delete().eq('goalId', id)
+      const { error: taskError } = await supabase.from('tasks').delete().eq('goal_id', id)
       if (taskError) throw new Error(taskError.message)
 
-      const { error: bnError } = await supabase.from('Bottleneck').delete().eq('goalId', id)
+      const { error: bnError } = await supabase.from('bottlenecks').delete().eq('goal_id', id)
       if (bnError) throw new Error(bnError.message)
 
-      const { error } = await supabase.from('Goal').delete().eq('id', id)
+      const { error } = await supabase.from('goals').delete().eq('id', id)
       if (error) throw new Error(error.message)
     },
     onSuccess: (_, id) => {
@@ -157,22 +157,22 @@ export function FoundationScreen() {
   })
 
   const createBnMutation = useMutation({
-    mutationFn: async (data: { title: string; description: string | null; goalId: string }) => {
-      const { error } = await supabase.from('Bottleneck').insert({ title: data.title, description: data.description, goalId: data.goalId })
+    mutationFn: async (data: { title: string; description: string | null; goal_id: string }) => {
+      const { error } = await supabase.from('bottlenecks').insert({ title: data.title, description: data.description, goal_id: data.goal_id })
       if (error) throw new Error(error.message)
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['bottlenecks'] })
       queryClient.invalidateQueries({ queryKey: ['goals'] })
       toast.success('Bottleneck created')
-      setBnForms((prev) => ({ ...prev, [variables.goalId]: '' }))
+      setBnForms((prev) => ({ ...prev, [variables.goal_id]: '' }))
     },
     onError: () => toast.error('Failed to create bottleneck'),
   })
 
   const updateBnMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { title: string; description: string | null } }) => {
-      const { error } = await supabase.from('Bottleneck').update({ title: data.title, description: data.description }).eq('id', id)
+      const { error } = await supabase.from('bottlenecks').update({ title: data.title, description: data.description }).eq('id', id)
       if (error) throw new Error(error.message)
     },
     onSuccess: () => {
@@ -185,10 +185,10 @@ export function FoundationScreen() {
 
   const deleteBnMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error: taskError } = await supabase.from('Task').delete().eq('bottleneckId', id)
+      const { error: taskError } = await supabase.from('tasks').delete().eq('bottleneck_id', id)
       if (taskError) throw new Error(taskError.message)
 
-      const { error } = await supabase.from('Bottleneck').delete().eq('id', id)
+      const { error } = await supabase.from('bottlenecks').delete().eq('id', id)
       if (error) throw new Error(error.message)
     },
     onSuccess: () => {
@@ -239,7 +239,7 @@ export function FoundationScreen() {
     createBnMutation.mutate({
       title,
       description: null,
-      goalId,
+      goal_id: goalId,
     })
   }
 
@@ -265,8 +265,8 @@ export function FoundationScreen() {
     deleteBnMutation.mutate(deletingBn.id)
   }
 
-  function getBottlenecksForGoal(goalId: string) {
-    return bottlenecks.filter((b) => b.goalId === goalId)
+  function getBottlenecksForGoal(goal_id: string) {
+    return bottlenecks.filter((b) => b.goal_id === goal_id)
   }
 
   const isLoading = goalsLoading || bnsLoading
@@ -516,8 +516,8 @@ function GoalCard({
   onToggle: () => void
   onEdit: () => void
   onDelete: () => void
-  onBnFormChange: (goalId: string, value: string) => void
-  onBnSubmit: (goalId: string, e: React.FormEvent) => void
+  onBnFormChange: (goal_id: string, value: string) => void
+  onBnSubmit: (goal_id: string, e: React.FormEvent) => void
   onBnEdit: (bn: Bottleneck) => void
   onBnDelete: (bn: Bottleneck) => void
   bnFormValue: string

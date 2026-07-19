@@ -13,11 +13,11 @@ import type { Goal, Bottleneck, Task, DimensionOption } from '@/types'
 async function fetchCoachContext() {
   const [goalsResult, bottlenecksResult, tasksResult, optionsResult, settingsResult] =
     await Promise.all([
-      supabase.from('Goal').select('*, bottlenecks:Bottleneck(count), tasks:Task(count)').order('createdAt', { ascending: false }),
-      supabase.from('Bottleneck').select('*, goal:Goal(id, title), tasks:Task(count)').order('createdAt', { ascending: false }),
-      supabase.from('Task').select('*, goal:Goal(id, title), bottleneck:Bottleneck(id, title), priorityOption:ExecutionDimensionOption(id, dimension, label, sortOrder), impactOption:ExecutionDimensionOption(id, dimension, label, sortOrder), clarityOption:ExecutionDimensionOption(id, dimension, label, sortOrder), timeOption:ExecutionDimensionOption(id, dimension, label, sortOrder)').order('createdAt', { ascending: false }),
-      supabase.from('ExecutionDimensionOption').select('*').order('dimension', { ascending: true }).order('sortOrder', { ascending: true }),
-      supabase.from('AppSetting').select('*'),
+      supabase.from('goals').select('*, bottlenecks:bottlenecks(count), tasks:tasks(count)').order('created_at', { ascending: false }),
+      supabase.from('bottlenecks').select('*, goal:goals(id, title), tasks:tasks(count)').order('created_at', { ascending: false }),
+      supabase.from('tasks').select('*, goal:goals(id, title), bottleneck:bottlenecks(id, title), priority_option:execution_dimension_options(id, dimension, label, sort_order), impact_option:execution_dimension_options(id, dimension, label, sort_order), clarity_option:execution_dimension_options(id, dimension, label, sort_order), time_option:execution_dimension_options(id, dimension, label, sort_order)').order('created_at', { ascending: false }),
+      supabase.from('execution_dimension_options').select('*').order('dimension', { ascending: true }).order('sort_order', { ascending: true }),
+      supabase.from('app_settings').select('*'),
     ])
 
   const goals = (goalsResult.data ?? []) as Goal[]
@@ -35,10 +35,10 @@ async function fetchCoachContext() {
     }
   }
 
-  const groupedDimensions: Record<string, { label: string; sortOrder: number }[]> = {}
+  const groupedDimensions: Record<string, { label: string; sort_order: number }[]> = {}
   for (const option of dimensionOptions) {
     if (!groupedDimensions[option.dimension]) groupedDimensions[option.dimension] = []
-    groupedDimensions[option.dimension].push({ label: option.label, sortOrder: option.sortOrder })
+    groupedDimensions[option.dimension].push({ label: option.label, sort_order: option.sort_order })
   }
 
   const pendingTasks = tasks.filter((t: Task) => t.status === 'pending')
@@ -63,7 +63,7 @@ ${ctx.goals.map((g) => `- **${g.title}**${g.description ? `: ${g.description}` :
 ${ctx.bottlenecks.map((b) => `- **${b.title}**${b.description ? `: ${b.description}` : ''} (Goal: ${b.goal?.title})`).join('\n') || '(No bottlenecks yet)'}
 
 ### Pending Tasks (${ctx.pendingTasks.length})
-${ctx.pendingTasks.map((t) => `- **${t.title}** | Goal: ${t.goal.title} | Priority: ${t.priorityOption.label}${t.impactOption ? ` | Impact: ${t.impactOption.label}` : ''}${t.deadline ? ` | Deadline: ${new Date(t.deadline).toLocaleDateString()}` : ''}`).join('\n') || '(No pending tasks)'}
+${ctx.pendingTasks.map((t) => `- **${t.title}** | Goal: ${t.goal.title} | Priority: ${t.priority_option.label}${t.impact_option ? ` | Impact: ${t.impact_option.label}` : ''}${t.deadline ? ` | Deadline: ${new Date(t.deadline).toLocaleDateString()}` : ''}`).join('\n') || '(No pending tasks)'}
 
 ### Completed Tasks (${ctx.completedTasks.length})
 ${ctx.completedTasks.length > 0 ? ctx.completedTasks.slice(-10).map((t) => `- **${t.title}** (Goal: ${t.goal.title})`).join('\n') : '(No completed tasks yet)'}
@@ -125,8 +125,8 @@ export default function CoachScreen() {
       const systemPrompt = buildSystemPrompt(ctx)
 
       const [deepSeekSetting, geminiSetting] = await Promise.all([
-        supabase.from('AppSetting').select('value').eq('key', 'deepseek_api_key').maybeSingle(),
-        supabase.from('AppSetting').select('value').eq('key', 'gemini_api_key').maybeSingle(),
+        supabase.from('app_settings').select('value').eq('key', 'deepseek_api_key').maybeSingle(),
+        supabase.from('app_settings').select('value').eq('key', 'gemini_api_key').maybeSingle(),
       ])
 
       const deepSeekKey = deepSeekSetting?.data?.value || import.meta.env.VITE_DEEPSEEK_API_KEY

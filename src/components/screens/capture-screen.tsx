@@ -38,7 +38,7 @@ export function CaptureScreen() {
   const { data: goals = [], isLoading: goalsLoading } = useQuery<Goal[]>({
     queryKey: ['goals'],
     queryFn: async () => {
-      const { data } = await supabase.from('Goal').select('*').order('createdAt', { ascending: false })
+      const { data } = await supabase.from('goals').select('*').order('created_at', { ascending: false })
       return data ?? []
     },
   })
@@ -47,7 +47,7 @@ export function CaptureScreen() {
     useQuery<Bottleneck[]>({
       queryKey: ['bottlenecks'],
       queryFn: async () => {
-        const { data } = await supabase.from('Bottleneck').select('*, goal:Goal(id, title)').order('createdAt', { ascending: false })
+        const { data } = await supabase.from('bottlenecks').select('*, goal:goals(id, title)').order('created_at', { ascending: false })
         return (data ?? []) as unknown as Bottleneck[]
       },
     })
@@ -56,14 +56,14 @@ export function CaptureScreen() {
     queryKey: ['dimensions'],
     queryFn: async () => {
       const { data: options } = await supabase
-        .from('ExecutionDimensionOption')
+        .from('execution_dimension_options')
         .select('*')
         .order('dimension', { ascending: true })
-        .order('sortOrder', { ascending: true })
+        .order('sort_order', { ascending: true })
 
-      const opts = (options ?? []) as { id: string; dimension: string; label: string; sortOrder: number }[]
+      const opts = (options ?? []) as { id: string; dimension: string; label: string; sort_order: number }[]
 
-      const { data: settings } = await supabase.from('AppSetting').select('*')
+      const { data: settings } = await supabase.from('app_settings').select('*')
       const settingsMap: Record<string, string> = {}
       if (settings) {
         for (const s of settings) settingsMap[s.key] = s.value
@@ -89,7 +89,7 @@ export function CaptureScreen() {
   const dimNames = dimensions?.dimensionNames ?? {}
   const dimOptions = dimensions?.options ?? {}
 
-  const bottlenecksForGoal = allBottlenecks.filter((b) => b.goalId === goalId)
+  const bottlenecksForGoal = allBottlenecks.filter((b) => b.goal_id === goalId)
   const priorityOptions = dimOptions['priority'] ?? []
   const impactOptions = dimOptions['impact'] ?? []
   const clarityOptions = dimOptions['clarity'] ?? []
@@ -107,25 +107,25 @@ export function CaptureScreen() {
   const createMutation = useMutation({
     mutationFn: async (data: {
       title: string
-      goalId: string
-      bottleneckId: string
-      priorityOptionId: string
-      impactOptionId?: string
-      clarityOptionId?: string
-      timeOptionId?: string
+      goal_id: string
+      bottleneck_id: string
+      priority_option_id: string
+      impact_option_id?: string
+      clarity_option_id?: string
+      time_option_id?: string
       deadline?: string
       notes?: string
     }) => {
       const { data: task, error } = await supabase
-        .from('Task')
+        .from('tasks')
         .insert({
           title: data.title.trim(),
-          goalId: data.goalId,
-          bottleneckId: data.bottleneckId,
-          priorityOptionId: data.priorityOptionId,
-          impactOptionId: data.impactOptionId || null,
-          clarityOptionId: data.clarityOptionId || null,
-          timeOptionId: data.timeOptionId || null,
+          goal_id: data.goal_id,
+          bottleneck_id: data.bottleneck_id,
+          priority_option_id: data.priority_option_id,
+          impact_option_id: data.impact_option_id || null,
+          clarity_option_id: data.clarity_option_id || null,
+          time_option_id: data.time_option_id || null,
           deadline: data.deadline ? new Date(data.deadline).toISOString() : null,
           notes: data.notes?.trim() || null,
         })
@@ -164,12 +164,12 @@ export function CaptureScreen() {
 
     createMutation.mutate({
       title: title.trim(),
-      goalId,
-      bottleneckId,
-      priorityOptionId,
-      impactOptionId: impactOptionId || undefined,
-      clarityOptionId: clarityOptionId || undefined,
-      timeOptionId: timeOptionId || undefined,
+      goal_id: goalId,
+      bottleneck_id: bottleneckId,
+      priority_option_id: priorityOptionId,
+      impact_option_id: impactOptionId || undefined,
+      clarity_option_id: clarityOptionId || undefined,
+      time_option_id: timeOptionId || undefined,
       deadline: deadline || undefined,
       notes: notes.trim() || undefined,
     })

@@ -48,28 +48,28 @@ type StatusFilter = 'all' | 'pending' | 'completed'
 
 interface EditFormState {
   title: string
-  goalId: string
-  bottleneckId: string
-  priorityOptionId: string
-  impactOptionId: string
-  clarityOptionId: string
-  timeOptionId: string
+  goal_id: string
+  bottleneck_id: string
+  priority_option_id: string
+  impact_option_id: string
+  clarity_option_id: string
+  time_option_id: string
   deadline: string
   notes: string
 }
 
-const TASK_SELECT = '*, goal:Goal(id, title), bottleneck:Bottleneck(id, title), priorityOption:ExecutionDimensionOption(id, dimension, label, sortOrder), impactOption:ExecutionDimensionOption(id, dimension, label, sortOrder), clarityOption:ExecutionDimensionOption(id, dimension, label, sortOrder), timeOption:ExecutionDimensionOption(id, dimension, label, sortOrder)'
+const TASK_SELECT = '*, goal:goals(id, title), bottleneck:bottlenecks(id, title), priority_option:execution_dimension_options(id, dimension, label, sort_order), impact_option:execution_dimension_options(id, dimension, label, sort_order), clarity_option:execution_dimension_options(id, dimension, label, sort_order), time_option:execution_dimension_options(id, dimension, label, sort_order)'
 
 async function fetchDimensions(): Promise<DimensionsData> {
   const { data: options } = await supabase
-    .from('ExecutionDimensionOption')
+    .from('execution_dimension_options')
     .select('*')
     .order('dimension', { ascending: true })
-    .order('sortOrder', { ascending: true })
+    .order('sort_order', { ascending: true })
 
-  const opts = (options ?? []) as { id: string; dimension: string; label: string; sortOrder: number }[]
+  const opts = (options ?? []) as { id: string; dimension: string; label: string; sort_order: number }[]
 
-  const { data: settings } = await supabase.from('AppSetting').select('*')
+  const { data: settings } = await supabase.from('app_settings').select('*')
   const settingsMap: Record<string, string> = {}
   if (settings) {
     for (const s of settings) settingsMap[s.key] = s.value
@@ -104,7 +104,7 @@ export function BacklogScreen() {
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: ['tasks'],
     queryFn: async () => {
-      const { data } = await supabase.from('Task').select(TASK_SELECT).order('createdAt', { ascending: false })
+      const { data } = await supabase.from('tasks').select(TASK_SELECT).order('created_at', { ascending: false })
       return (data ?? []) as unknown as Task[]
     },
     enabled: activeTab === 'backlog',
@@ -119,7 +119,7 @@ export function BacklogScreen() {
   const { data: goals = [] } = useQuery<Goal[]>({
     queryKey: ['goals'],
     queryFn: async () => {
-      const { data } = await supabase.from('Goal').select('*').order('createdAt', { ascending: false })
+      const { data } = await supabase.from('goals').select('*').order('created_at', { ascending: false })
       return data ?? []
     },
     enabled: activeTab === 'backlog',
@@ -128,7 +128,7 @@ export function BacklogScreen() {
   const { data: allBottlenecks = [] } = useQuery<Bottleneck[]>({
     queryKey: ['bottlenecks'],
     queryFn: async () => {
-      const { data } = await supabase.from('Bottleneck').select('*, goal:Goal(id, title)').order('createdAt', { ascending: false })
+      const { data } = await supabase.from('bottlenecks').select('*, goal:goals(id, title)').order('created_at', { ascending: false })
       return (data ?? []) as unknown as Bottleneck[]
     },
     enabled: activeTab === 'backlog',
@@ -138,17 +138,17 @@ export function BacklogScreen() {
     mutationFn: async ({ id, data }: { id: string; data: Partial<Task> }) => {
       const updateData: Record<string, unknown> = {}
       if (data.title !== undefined) updateData.title = data.title
-      if (data.goalId !== undefined) updateData.goalId = data.goalId
-      if (data.bottleneckId !== undefined) updateData.bottleneckId = data.bottleneckId
-      if (data.priorityOptionId !== undefined) updateData.priorityOptionId = data.priorityOptionId
-      if (data.impactOptionId !== undefined) updateData.impactOptionId = data.impactOptionId || null
-      if (data.clarityOptionId !== undefined) updateData.clarityOptionId = data.clarityOptionId || null
-      if (data.timeOptionId !== undefined) updateData.timeOptionId = data.timeOptionId || null
+      if (data.goal_id !== undefined) updateData.goal_id = data.goal_id
+      if (data.bottleneck_id !== undefined) updateData.bottleneck_id = data.bottleneck_id
+      if (data.priority_option_id !== undefined) updateData.priority_option_id = data.priority_option_id
+      if (data.impact_option_id !== undefined) updateData.impact_option_id = data.impact_option_id || null
+      if (data.clarity_option_id !== undefined) updateData.clarity_option_id = data.clarity_option_id || null
+      if (data.time_option_id !== undefined) updateData.time_option_id = data.time_option_id || null
       if (data.deadline !== undefined) updateData.deadline = data.deadline ? new Date(data.deadline).toISOString() : null
       if (data.notes !== undefined) updateData.notes = data.notes || null
       if (data.status !== undefined) updateData.status = data.status
 
-      const { error } = await supabase.from('Task').update(updateData).eq('id', id)
+      const { error } = await supabase.from('tasks').update(updateData).eq('id', id)
       if (error) throw new Error(error.message)
     },
     onSuccess: () => {
@@ -164,7 +164,7 @@ export function BacklogScreen() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('Task').delete().eq('id', id)
+      const { error } = await supabase.from('tasks').delete().eq('id', id)
       if (error) throw new Error(error.message)
     },
     onSuccess: () => {
@@ -187,7 +187,7 @@ export function BacklogScreen() {
   })
 
   const bottlenecksForGoal = allBottlenecks.filter(
-    (b) => b.goalId === editForm?.goalId
+    (b) => b.goal_id === editForm?.goal_id
   )
 
   const dimNames = dimensions?.dimensionNames ?? {}
@@ -197,12 +197,12 @@ export function BacklogScreen() {
     setEditingTask(task)
     setEditForm({
       title: task.title,
-      goalId: task.goalId,
-      bottleneckId: task.bottleneckId,
-      priorityOptionId: task.priorityOptionId,
-      impactOptionId: task.impactOptionId ?? '',
-      clarityOptionId: task.clarityOptionId ?? '',
-      timeOptionId: task.timeOptionId ?? '',
+      goal_id: task.goal_id,
+      bottleneck_id: task.bottleneck_id,
+      priority_option_id: task.priority_option_id,
+      impact_option_id: task.impact_option_id ?? '',
+      clarity_option_id: task.clarity_option_id ?? '',
+      time_option_id: task.time_option_id ?? '',
       deadline: task.deadline
         ? new Date(task.deadline).toISOString().split('T')[0]
         : '',
@@ -216,12 +216,12 @@ export function BacklogScreen() {
       id: editingTask.id,
       data: {
         title: editForm.title,
-        goalId: editForm.goalId,
-        bottleneckId: editForm.bottleneckId,
-        priorityOptionId: editForm.priorityOptionId,
-        impactOptionId: editForm.impactOptionId || null,
-        clarityOptionId: editForm.clarityOptionId || null,
-        timeOptionId: editForm.timeOptionId || null,
+        goal_id: editForm.goal_id,
+        bottleneck_id: editForm.bottleneck_id,
+        priority_option_id: editForm.priority_option_id,
+        impact_option_id: editForm.impact_option_id || null,
+        clarity_option_id: editForm.clarity_option_id || null,
+        time_option_id: editForm.time_option_id || null,
         deadline: editForm.deadline || null,
         notes: editForm.notes || null,
       },
@@ -337,12 +337,12 @@ export function BacklogScreen() {
                 <div className="grid gap-2">
                   <Label>Goal</Label>
                   <Select
-                    value={editForm.goalId}
+                    value={editForm.goal_id}
                     onValueChange={(val) =>
                       setEditForm({
                         ...editForm,
-                        goalId: val,
-                        bottleneckId: '',
+                        goal_id: val,
+                        bottleneck_id: '',
                       })
                     }
                   >
@@ -362,9 +362,9 @@ export function BacklogScreen() {
                 <div className="grid gap-2">
                   <Label>Bottleneck</Label>
                   <Select
-                    value={editForm.bottleneckId}
+                    value={editForm.bottleneck_id}
                     onValueChange={(val) =>
-                      setEditForm({ ...editForm, bottleneckId: val })
+                      setEditForm({ ...editForm, bottleneck_id: val })
                     }
                   >
                     <SelectTrigger className="w-full">
@@ -455,9 +455,9 @@ export function BacklogScreen() {
               disabled={
                 updateMutation.isPending ||
                 !editForm?.title.trim() ||
-                !editForm?.goalId ||
-                !editForm?.bottleneckId ||
-                !editForm?.priorityOptionId
+                !editForm?.goal_id ||
+                !editForm?.bottleneck_id ||
+                !editForm?.priority_option_id
               }
             >
               {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
@@ -560,7 +560,7 @@ function TaskCard({
           {task.bottleneck.title}
         </span>
         <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-5">
-          {task.priorityOption.label}
+          {task.priority_option.label}
         </Badge>
         {task.deadline && (
           <span className="inline-flex items-center gap-1">

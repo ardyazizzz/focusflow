@@ -41,10 +41,10 @@ function priorityColor(label: string): string {
   return 'bg-gray-100 text-gray-600 border-gray-200'
 }
 
-const TASK_SELECT = '*, goal:Goal(id, title), bottleneck:Bottleneck(id, title), priorityOption:ExecutionDimensionOption(id, dimension, label, sortOrder), impactOption:ExecutionDimensionOption(id, dimension, label, sortOrder), clarityOption:ExecutionDimensionOption(id, dimension, label, sortOrder), timeOption:ExecutionDimensionOption(id, dimension, label, sortOrder)'
+const TASK_SELECT = '*, goal:goals(id, title), bottleneck:bottlenecks(id, title), priority_option:execution_dimension_options(id, dimension, label, sort_order), impact_option:execution_dimension_options(id, dimension, label, sort_order), clarity_option:execution_dimension_options(id, dimension, label, sort_order), time_option:execution_dimension_options(id, dimension, label, sort_order)'
 
 async function fetchTasks(status?: string): Promise<Task[]> {
-  let query = supabase.from('Task').select(TASK_SELECT).order('createdAt', { ascending: false })
+  let query = supabase.from('tasks').select(TASK_SELECT).order('created_at', { ascending: false })
   if (status) query = query.eq('status', status)
   const { data } = await query
   return (data ?? []) as unknown as Task[]
@@ -52,15 +52,15 @@ async function fetchTasks(status?: string): Promise<Task[]> {
 
 async function fetchDimensions(): Promise<DimensionsData> {
   const { data: options } = await supabase
-    .from('ExecutionDimensionOption')
+    .from('execution_dimension_options')
     .select('*')
     .order('dimension', { ascending: true })
-    .order('sortOrder', { ascending: true })
+    .order('sort_order', { ascending: true })
 
-  const opts = (options ?? []) as { id: string; dimension: string; label: string; sortOrder: number }[]
+  const opts = (options ?? []) as { id: string; dimension: string; label: string; sort_order: number }[]
 
   const { data: settings } = await supabase
-    .from('AppSetting')
+    .from('app_settings')
     .select('*')
 
   const settingsMap: Record<string, string> = {}
@@ -85,7 +85,7 @@ async function fetchDimensions(): Promise<DimensionsData> {
 }
 
 async function fetchSettings(): Promise<SettingsData> {
-  const { data: settings } = await supabase.from('AppSetting').select('*')
+  const { data: settings } = await supabase.from('app_settings').select('*')
   const map: Record<string, string> = {}
   if (settings) {
     for (const s of settings) map[s.key] = s.value
@@ -101,7 +101,7 @@ async function fetchSettings(): Promise<SettingsData> {
 
 async function completeTask(taskId: string): Promise<Task> {
   const { data, error } = await supabase
-    .from('Task')
+    .from('tasks')
     .update({ status: 'completed', completedAt: new Date().toISOString() })
     .eq('id', taskId)
     .select(TASK_SELECT)
@@ -112,7 +112,7 @@ async function completeTask(taskId: string): Promise<Task> {
 
 async function skipTask(taskId: string): Promise<Task> {
   const { data, error } = await supabase
-    .from('Task')
+    .from('tasks')
     .update({ status: 'pending', completedAt: null })
     .eq('id', taskId)
     .select(TASK_SELECT)
@@ -377,9 +377,9 @@ export function TodayScreen() {
                       </h3>
                       <Badge
                         variant="outline"
-                        className={`text-[11px] px-1.5 py-0 h-5 shrink-0 ${priorityColor(task.priorityOption.label)}`}
+                        className={`text-[11px] px-1.5 py-0 h-5 shrink-0 ${priorityColor(task.priority_option.label)}`}
                       >
-                        {task.priorityOption.label}
+                        {task.priority_option.label}
                       </Badge>
                       {isFocusing && (
                         <Badge className="bg-primary/10 text-primary border-primary/20 text-[11px] h-5 gap-1">

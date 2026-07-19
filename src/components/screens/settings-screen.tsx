@@ -54,7 +54,7 @@ const DEFAULT_NAMES: Record<DimensionKey, string> = {
 }
 
 async function fetchSettings(): Promise<SettingsData> {
-  const { data: settings } = await supabase.from('AppSetting').select('*')
+  const { data: settings } = await supabase.from('app_settings').select('*')
   const map: Record<string, string> = {}
   if (settings) {
     for (const s of settings) map[s.key] = s.value
@@ -70,14 +70,14 @@ async function fetchSettings(): Promise<SettingsData> {
 
 async function fetchDimensions(): Promise<DimensionsData> {
   const { data: options } = await supabase
-    .from('ExecutionDimensionOption')
+    .from('execution_dimension_options')
     .select('*')
     .order('dimension', { ascending: true })
-    .order('sortOrder', { ascending: true })
+    .order('sort_order', { ascending: true })
 
-  const opts = (options ?? []) as { id: string; dimension: string; label: string; sortOrder: number; createdAt: string; updatedAt: string }[]
+  const opts = (options ?? []) as { id: string; dimension: string; label: string; sort_order: number; createdAt: string; updatedAt: string }[]
 
-  const { data: settings } = await supabase.from('AppSetting').select('*')
+  const { data: settings } = await supabase.from('app_settings').select('*')
   const settingsMap: Record<string, string> = {}
   if (settings) {
     for (const s of settings) settingsMap[s.key] = s.value
@@ -93,19 +93,19 @@ async function fetchDimensions(): Promise<DimensionsData> {
   const grouped: Record<string, DimensionOption[]> = {}
   for (const option of opts) {
     if (!grouped[option.dimension]) grouped[option.dimension] = []
-    grouped[option.dimension].push({ id: option.id, dimension: option.dimension, label: option.label, sortOrder: option.sortOrder })
+    grouped[option.dimension].push({ id: option.id, dimension: option.dimension, label: option.label, sort_order: option.sort_order })
   }
 
   return { dimensionNames, options: grouped }
 }
 
 async function upsertSetting(key: string, value: string) {
-  const { data: existing } = await supabase.from('AppSetting').select('id').eq('key', key).maybeSingle()
+  const { data: existing } = await supabase.from('app_settings').select('id').eq('key', key).maybeSingle()
   if (existing) {
-    const { error } = await supabase.from('AppSetting').update({ value }).eq('key', key)
+    const { error } = await supabase.from('app_settings').update({ value }).eq('key', key)
     if (error) throw new Error(error.message)
   } else {
-    const { error } = await supabase.from('AppSetting').insert({ key, value })
+    const { error } = await supabase.from('app_settings').insert({ key, value })
     if (error) throw new Error(error.message)
   }
 }
@@ -177,8 +177,8 @@ export default function SettingsScreen() {
   })
 
   const createOptionMutation = useMutation({
-    mutationFn: async ({ dimension, label, sortOrder }: { dimension: string; label: string; sortOrder: number }) => {
-      const { error } = await supabase.from('ExecutionDimensionOption').insert({ dimension, label, sortOrder })
+    mutationFn: async ({ dimension, label, sort_order }: { dimension: string; label: string; sort_order: number }) => {
+      const { error } = await supabase.from('execution_dimension_options').insert({ dimension, label, sort_order })
       if (error) throw new Error(error.message)
     },
     onSuccess: () => {
@@ -191,8 +191,8 @@ export default function SettingsScreen() {
   })
 
   const updateOptionMutation = useMutation({
-    mutationFn: async ({ id, label, sortOrder }: { id: string; label: string; sortOrder: number }) => {
-      const { error } = await supabase.from('ExecutionDimensionOption').update({ label, sortOrder }).eq('id', id)
+    mutationFn: async ({ id, label, sort_order }: { id: string; label: string; sort_order: number }) => {
+      const { error } = await supabase.from('execution_dimension_options').update({ label, sort_order }).eq('id', id)
       if (error) throw new Error(error.message)
     },
     onSuccess: () => {
@@ -207,7 +207,7 @@ export default function SettingsScreen() {
 
   const deleteOptionMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('ExecutionDimensionOption').delete().eq('id', id)
+      const { error } = await supabase.from('execution_dimension_options').delete().eq('id', id)
       if (error) throw new Error(error.message)
     },
     onSuccess: () => {
@@ -255,7 +255,7 @@ export default function SettingsScreen() {
     setEditingOption(option)
     setEditDimension(dimension)
     setEditLabel(option.label)
-    setEditSortOrder(option.sortOrder)
+    setEditSortOrder(option.sort_order)
     setEditDialogOpen(true)
   }, [])
 
@@ -265,13 +265,13 @@ export default function SettingsScreen() {
       updateOptionMutation.mutate({
         id: editingOption.id,
         label: editLabel.trim(),
-        sortOrder: editSortOrder,
+        sort_order: editSortOrder,
       })
     } else {
-      createOptionMutation.mutate({
-        dimension: editDimension,
-        label: editLabel.trim(),
-        sortOrder: editSortOrder,
+        createOptionMutation.mutate({
+          dimension: editDimension,
+          label: editLabel.trim(),
+          sort_order: editSortOrder,
       })
       setEditDialogOpen(false)
     }
@@ -381,7 +381,7 @@ export default function SettingsScreen() {
                 ) : (
                   <div className="space-y-1">
                     {options
-                      .sort((a, b) => a.sortOrder - b.sortOrder)
+                      .sort((a, b) => a.sort_order - b.sort_order)
                       .map((option) => (
                         <div
                           key={option.id}
@@ -390,7 +390,7 @@ export default function SettingsScreen() {
                           <GripVertical className="size-3.5 shrink-0 text-muted-foreground/50" />
                           <span className="flex-1 text-sm">{option.label}</span>
                           <span className="text-xs text-muted-foreground">
-                            #{option.sortOrder}
+                            #{option.sort_order}
                           </span>
                           <Button
                             variant="ghost"
