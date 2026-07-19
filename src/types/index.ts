@@ -28,8 +28,8 @@ export interface DimensionOption {
 export interface Task {
   id: string;
   title: string;
-  goal_id: string;
-  bottleneck_id: string;
+  goal_id: string | null;
+  bottleneck_id: string | null;
   priority_option_id: string;
   impact_option_id: string | null;
   clarity_option_id: string | null;
@@ -40,8 +40,8 @@ export interface Task {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
-  goal: { id: string; title: string };
-  bottleneck: { id: string; title: string };
+  goal: { id: string; title: string } | null;
+  bottleneck: { id: string; title: string } | null;
   priority_option: DimensionOption;
   impact_option: DimensionOption | null;
   clarity_option: DimensionOption | null;

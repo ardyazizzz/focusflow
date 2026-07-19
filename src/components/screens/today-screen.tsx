@@ -389,9 +389,9 @@ export function TodayScreen() {
                       )}
                     </div>
                     <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{task.goal.title}</span>
+                      <span>{task.goal?.title ?? '—'}</span>
                       <ArrowRight className="size-3" />
-                      <span>{task.bottleneck.title}</span>
+                      <span>{task.bottleneck?.title ?? '—'}</span>
                     </div>
                   </div>
 

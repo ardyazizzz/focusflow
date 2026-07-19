@@ -197,8 +197,8 @@ export function BacklogScreen() {
     setEditingTask(task)
     setEditForm({
       title: task.title,
-      goal_id: task.goal_id,
-      bottleneck_id: task.bottleneck_id,
+      goal_id: task.goal_id ?? '',
+      bottleneck_id: task.bottleneck_id ?? '',
       priority_option_id: task.priority_option_id,
       impact_option_id: task.impact_option_id ?? '',
       clarity_option_id: task.clarity_option_id ?? '',
@@ -216,8 +216,8 @@ export function BacklogScreen() {
       id: editingTask.id,
       data: {
         title: editForm.title,
-        goal_id: editForm.goal_id,
-        bottleneck_id: editForm.bottleneck_id,
+        goal_id: editForm.goal_id || null,
+        bottleneck_id: editForm.bottleneck_id || null,
         priority_option_id: editForm.priority_option_id,
         impact_option_id: editForm.impact_option_id || null,
         clarity_option_id: editForm.clarity_option_id || null,
@@ -455,8 +455,6 @@ export function BacklogScreen() {
               disabled={
                 updateMutation.isPending ||
                 !editForm?.title.trim() ||
-                !editForm?.goal_id ||
-                !editForm?.bottleneck_id ||
                 !editForm?.priority_option_id
               }
             >
@@ -553,11 +551,11 @@ function TaskCard({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1">
           <ChevronDown className="size-3" />
-          {task.goal.title}
+          {task.goal?.title ?? '—'}
         </span>
         <span className="inline-flex items-center gap-1">
           <ChevronDown className="size-3 rotate-90" />
-          {task.bottleneck.title}
+          {task.bottleneck?.title ?? '—'}
         </span>
         <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-5">
           {task.priority_option.label}

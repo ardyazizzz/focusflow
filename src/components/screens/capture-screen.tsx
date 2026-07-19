@@ -107,8 +107,8 @@ export function CaptureScreen() {
   const createMutation = useMutation({
     mutationFn: async (data: {
       title: string
-      goal_id: string
-      bottleneck_id: string
+      goal_id: string | null
+      bottleneck_id: string | null
       priority_option_id: string
       impact_option_id?: string
       clarity_option_id?: string
@@ -120,8 +120,8 @@ export function CaptureScreen() {
         .from('tasks')
         .insert({
           title: data.title.trim(),
-          goal_id: data.goal_id,
-          bottleneck_id: data.bottleneck_id,
+          goal_id: data.goal_id || null,
+          bottleneck_id: data.bottleneck_id || null,
           priority_option_id: data.priority_option_id,
           impact_option_id: data.impact_option_id || null,
           clarity_option_id: data.clarity_option_id || null,
@@ -160,7 +160,7 @@ export function CaptureScreen() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!title.trim() || !goalId || !bottleneckId || !priorityOptionId) return
+    if (!title.trim() || !priorityOptionId) return
 
     createMutation.mutate({
       title: title.trim(),
@@ -178,8 +178,6 @@ export function CaptureScreen() {
   const isSubmitting = createMutation.isPending
   const isValid =
     title.trim() !== '' &&
-    goalId !== '' &&
-    bottleneckId !== '' &&
     priorityOptionId !== ''
 
   function dimLabel(key: string): string {
@@ -264,7 +262,7 @@ export function CaptureScreen() {
 
         <div className="grid gap-2">
           <Label>
-            Goal <span className="text-destructive">*</span>
+            Goal
           </Label>
           <Select value={goalId} onValueChange={handleGoalChange}>
             <SelectTrigger className="w-full rounded-xl h-11">
@@ -282,33 +280,14 @@ export function CaptureScreen() {
 
         <div className="grid gap-2">
           <Label>
-            Bottleneck <span className="text-destructive">*</span>
+            Bottleneck
           </Label>
-          {goalId && bottlenecksForGoal.length === 0 ? (
-            <div className="flex flex-col items-start gap-2 rounded-xl border border-dashed border-border/80 bg-gray-50 px-4 py-3">
-              <p className="text-sm text-muted-foreground">
-                No bottlenecks for this goal yet.
-              </p>
-              <Button
-                type="button"
-                variant="link"
-                className="h-auto p-0 text-sm gap-1"
-                onClick={() => setActiveTab('foundation')}
-              >
-                <Link2 className="size-3.5" />
-                Create a Bottleneck first
-              </Button>
-            </div>
-          ) : (
-            <Select
-              value={bottleneckId}
-              onValueChange={setBottleneckId}
-              disabled={!goalId}
-            >
-              <SelectTrigger className="w-full rounded-xl h-11">
-                <SelectValue
-                  placeholder={goalId ? 'Select a bottleneck' : 'Select a goal first'}
-                />
+          <Select
+            value={bottleneckId}
+            onValueChange={setBottleneckId}
+          >
+            <SelectTrigger className="w-full rounded-xl h-11">
+              <SelectValue placeholder="Select a bottleneck" />
               </SelectTrigger>
               <SelectContent>
                 {bottlenecksForGoal.map((b) => (
@@ -317,8 +296,7 @@ export function CaptureScreen() {
                   </SelectItem>
                 ))}
               </SelectContent>
-            </Select>
-          )}
+          </Select>
         </div>
 
         <div className="grid gap-2">

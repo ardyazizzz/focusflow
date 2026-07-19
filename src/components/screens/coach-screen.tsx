@@ -63,10 +63,10 @@ ${ctx.goals.map((g) => `- **${g.title}**${g.description ? `: ${g.description}` :
 ${ctx.bottlenecks.map((b) => `- **${b.title}**${b.description ? `: ${b.description}` : ''} (Goal: ${b.goal?.title})`).join('\n') || '(No bottlenecks yet)'}
 
 ### Pending Tasks (${ctx.pendingTasks.length})
-${ctx.pendingTasks.map((t) => `- **${t.title}** | Goal: ${t.goal.title} | Priority: ${t.priority_option.label}${t.impact_option ? ` | Impact: ${t.impact_option.label}` : ''}${t.deadline ? ` | Deadline: ${new Date(t.deadline).toLocaleDateString()}` : ''}`).join('\n') || '(No pending tasks)'}
+${ctx.pendingTasks.map((t) => `- **${t.title}** | Goal: ${t.goal?.title ?? '—'} | Priority: ${t.priority_option.label}${t.impact_option ? ` | Impact: ${t.impact_option.label}` : ''}${t.deadline ? ` | Deadline: ${new Date(t.deadline).toLocaleDateString()}` : ''}`).join('\n') || '(No pending tasks)'}
 
 ### Completed Tasks (${ctx.completedTasks.length})
-${ctx.completedTasks.length > 0 ? ctx.completedTasks.slice(-10).map((t) => `- **${t.title}** (Goal: ${t.goal.title})`).join('\n') : '(No completed tasks yet)'}
+${ctx.completedTasks.length > 0 ? ctx.completedTasks.slice(-10).map((t) => `- **${t.title}** (Goal: ${t.goal?.title ?? '—'})`).join('\n') : '(No completed tasks yet)'}
 
 ### Execution Dimensions
 ${Object.entries(ctx.groupedDimensions).map(([dim, opts]) => `- **${ctx.dimensionNames[dim] || dim}**: ${opts.map((o) => o.label).join(', ')}`).join('\n') || '(No dimensions configured)'}

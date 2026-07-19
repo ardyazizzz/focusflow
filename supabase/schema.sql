@@ -35,8 +35,8 @@ CREATE TABLE execution_dimension_options (
 CREATE TABLE tasks (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   title TEXT NOT NULL,
-  goal_id TEXT NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
-  bottleneck_id TEXT NOT NULL REFERENCES bottlenecks(id) ON DELETE CASCADE,
+  goal_id TEXT REFERENCES goals(id) ON DELETE CASCADE,
+  bottleneck_id TEXT REFERENCES bottlenecks(id) ON DELETE CASCADE,
   priority_option_id TEXT NOT NULL REFERENCES execution_dimension_options(id),
   impact_option_id TEXT REFERENCES execution_dimension_options(id),
   clarity_option_id TEXT REFERENCES execution_dimension_options(id),
