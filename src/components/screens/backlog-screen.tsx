@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -41,6 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Separator } from '@/components/ui/separator'
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
 import type { Task, Goal, Bottleneck, DimensionsData, DimensionOption } from '@/types'
@@ -98,6 +99,8 @@ export function BacklogScreen() {
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [priorityFilter, setPriorityFilter] = useState('all')
+  const [queueFilter, setQueueFilter] = useState<'all' | 'in' | 'out'>('all')
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [editForm, setEditForm] = useState<EditFormState | null>(null)
   const [deletingTask, setDeletingTask] = useState<Task | null>(null)
@@ -179,12 +182,12 @@ export function BacklogScreen() {
   })
 
   const filteredTasks = tasks.filter((task) => {
-    const matchesSearch = task.title
-      .toLowerCase()
-      .includes(search.toLowerCase())
-    const matchesStatus =
-      statusFilter === 'all' || task.status === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase())
+    const matchesStatus = statusFilter === 'all' || task.status === statusFilter
+    const matchesPriority = priorityFilter === 'all' || task.priority_option.label === priorityFilter
+    const matchesQueue = queueFilter === 'all' ||
+      (queueFilter === 'in' ? task.queue_order < 9999 : task.queue_order >= 9999)
+    return matchesSearch && matchesStatus && matchesPriority && matchesQueue
   })
 
   const bottlenecksForGoal = allBottlenecks.filter(
@@ -241,11 +244,7 @@ export function BacklogScreen() {
     })
   }
 
-  const statusFilters: { value: StatusFilter; label: string }[] = [
-    { value: 'all', label: 'All' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'completed', label: 'Completed' },
-  ]
+  const priorityOptions = dimOptions['priority'] ?? []
 
   return (
     <div className="flex flex-col gap-4">
@@ -262,18 +261,41 @@ export function BacklogScreen() {
         </div>
       </div>
 
-      <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
-        {statusFilters.map((f) => (
-          <Button
-            key={f.value}
-            variant={statusFilter === f.value ? 'default' : 'ghost'}
-            size="sm"
-            className="h-7 px-3 text-xs"
-            onClick={() => setStatusFilter(f.value)}
-          >
-            {f.label}
-          </Button>
-        ))}
+      {/* ── Filter pills ──────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+          <SelectTrigger className="w-fit min-w-[100px] h-8 text-xs rounded-lg">
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Priorities</SelectItem>
+            {priorityOptions.map((opt: DimensionOption) => (
+              <SelectItem key={opt.id} value={opt.label}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <SelectTrigger className="w-fit min-w-[90px] h-8 text-xs rounded-lg">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={queueFilter} onValueChange={(v) => setQueueFilter(v as 'all' | 'in' | 'out')}>
+          <SelectTrigger className="w-fit min-w-[110px] h-8 text-xs rounded-lg">
+            <SelectValue placeholder="Queue" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="in">In Queue</SelectItem>
+            <SelectItem value="out">Not in Queue</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="max-h-[calc(100vh-260px)] min-h-0 overflow-y-auto pr-1 space-y-2">
@@ -292,23 +314,30 @@ export function BacklogScreen() {
           </div>
         ) : (
           <div className="space-y-2">
-            {filteredTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                dimNames={dimNames}
-                onEdit={() => openEdit(task)}
-                onDelete={() => setDeletingTask(task)}
-                formatDate={formatDate}
-                onQueueChange={async (newOrder) => {
-                  queryClient.setQueryData(['tasks'], (old: Task[] | undefined) =>
-                    old?.map(t => t.id === task.id ? { ...t, queue_order: newOrder } : t) ?? []
-                  )
-                  await supabase.from('tasks').update({ queue_order: newOrder }).eq('id', task.id)
-                  queryClient.invalidateQueries({ queryKey: ['tasks'] })
-                }}
-              />
-            ))}
+            {filteredTasks.map((task, i) => {
+              const prevQueued = i > 0 && filteredTasks[i-1].queue_order < 9999
+              const thisUnqueued = task.queue_order >= 9999
+              return (
+                <React.Fragment key={task.id}>
+                  {prevQueued && thisUnqueued && <Separator className="my-2" />}
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    dimNames={dimNames}
+                    onEdit={() => openEdit(task)}
+                    onDelete={() => setDeletingTask(task)}
+                    formatDate={formatDate}
+                    onQueueChange={async (newOrder) => {
+                      queryClient.setQueryData(['tasks'], (old: Task[] | undefined) =>
+                        old?.map(t => t.id === task.id ? { ...t, queue_order: newOrder } : t) ?? []
+                      )
+                      await supabase.from('tasks').update({ queue_order: newOrder }).eq('id', task.id)
+                      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+                    }}
+                  />
+                </React.Fragment>
+              )
+            })}
           </div>
         )}
       </div>
