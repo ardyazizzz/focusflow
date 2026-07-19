@@ -300,18 +300,12 @@ export function BacklogScreen() {
                 onEdit={() => openEdit(task)}
                 onDelete={() => setDeletingTask(task)}
                 formatDate={formatDate}
-                onQueueChange={(newOrder) => {
-                  const updates = tasks.map(t => ({
-                    id: t.id,
-                    queue_order: t.id === task.id ? newOrder : t.queue_order,
-                  }))
-                  const currentTasks = queryClient.getQueryData<Task[]>(['tasks'])
-                  if (currentTasks) {
-                    queryClient.setQueryData(['tasks'], currentTasks.map(t =>
-                      t.id === task.id ? { ...t, queue_order: newOrder } : t
-                    ))
-                  }
-                  supabase.from('tasks').update({ queue_order: newOrder }).eq('id', task.id)
+                onQueueChange={async (newOrder) => {
+                  queryClient.setQueryData(['tasks'], (old: Task[] | undefined) =>
+                    old?.map(t => t.id === task.id ? { ...t, queue_order: newOrder } : t) ?? []
+                  )
+                  await supabase.from('tasks').update({ queue_order: newOrder }).eq('id', task.id)
+                  queryClient.invalidateQueries({ queryKey: ['tasks'] })
                 }}
               />
             ))}
