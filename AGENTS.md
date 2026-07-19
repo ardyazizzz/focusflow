@@ -54,25 +54,25 @@ supabase/
 
 ---
 
-## Data Model (5 Tables)
+## Data Model (5 Tables) — lowercase snake_case
 
 ```
-Goal ──1:N──▶ Bottleneck ──1:N──▶ Task
-                                     │
-                                     ├──▶ ExecutionDimensionOption (priority)
-                                     ├──▶ ExecutionDimensionOption (impact)
-                                     ├──▶ ExecutionDimensionOption (clarity)
-                                     └──▶ ExecutionDimensionOption (time)
+goals ──1:N──▶ bottlenecks ──1:N──▶ tasks
+                                        │
+                                        ├──▶ execution_dimension_options (priority)
+                                        ├──▶ execution_dimension_options (impact)
+                                        ├──▶ execution_dimension_options (clarity)
+                                        └──▶ execution_dimension_options (time)
 
-AppSetting  (key-value pairs, no relations)
+app_settings  (key-value pairs, no relations)
 ```
 
 **Key relationships:**
-- `Goal` → `Bottleneck`: cascade delete
-- `Bottleneck` → `Task`: cascade delete (manual via API)
-- `Task.*OptionId` → `ExecutionDimensionOption`: soft reference, no cascade
+- `goals` → `bottlenecks`: cascade delete (`goal_id` FK)
+- `bottlenecks` → `tasks`: cascade delete (manual via API)
+- `tasks.*_option_id` → `execution_dimension_options`: soft reference, no cascade
 
-**`AppSetting`** stores flat key-value pairs: `pomodoroDuration`, `dimensionName_*`, and AI API keys (`deepseek_api_key`, `gemini_api_key`).
+**`app_settings`** stores flat key-value pairs: `pomodoroDuration`, `dimensionName_*`, and AI API keys (`deepseek_api_key`, `gemini_api_key`).
 
 ---
 
@@ -89,10 +89,10 @@ const { data: tasks = [], isLoading } = useQuery<Task[]>({
   queryKey: ['tasks', 'pending'],  // cache key, unique per query
   queryFn: async () => {
     const { data } = await supabase
-      .from('Task')
-      .select('*, goal:Goal(id, title), bottleneck:Bottleneck(id, title), ...')
+      .from('tasks')
+      .select('*, goal:goals(id, title), bottleneck:bottlenecks(id, title), ...')
       .eq('status', 'pending')
-      .order('createdAt', { ascending: false })
+      .order('created_at', { ascending: false })
     return (data ?? []) as unknown as Task[]
   },
 })
@@ -105,8 +105,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 const queryClient = useQueryClient()
 
 const createMutation = useMutation({
-  mutationFn: async (data: { title: string; goalId: string }) => {
-    const { error } = await supabase.from('Goal').insert({ title: data.title, ... })
+  mutationFn: async (data: { title: string; goal_id: string }) => {
+    const { error } = await supabase.from('goals').insert({ title: data.title, goal_id: data.goal_id })
     if (error) throw new Error(error.message)
   },
   onSuccess: () => {
@@ -124,28 +124,32 @@ const createMutation = useMutation({
 The app uses Supabase's foreign key joins extensively:
 ```ts
 // Task includes 6 related tables
-const TASK_SELECT = '*, goal:Goal(id, title), bottleneck:Bottleneck(id, title), priorityOption:ExecutionDimensionOption(id, dimension, label, sortOrder), impactOption:ExecutionDimensionOption(id, dimension, label, sortOrder), clarityOption:ExecutionDimensionOption(id, dimension, label, sortOrder), timeOption:ExecutionDimensionOption(id, dimension, label, sortOrder)'
+const TASK_SELECT = '*, goal:goals(id, title), bottleneck:bottlenecks(id, title), priority_option:execution_dimension_options(id, dimension, label, sort_order), impact_option:execution_dimension_options(id, dimension, label, sort_order), clarity_option:execution_dimension_options(id, dimension, label, sort_order), time_option:execution_dimension_options(id, dimension, label, sort_order)'
 ```
 
 To get counts:
 ```ts
-// Goal with counts
-supabase.from('Goal').select('*, bottlenecks:bottleneck(count), tasks:task(count)')
+// goals with counts
+supabase.from('goals').select('*, bottlenecks:bottlenecks(count), tasks:tasks(count)')
 // Returns: [{ ..., bottlenecks: [{ count: 5 }], tasks: [{ count: 3 }] }]
 ```
+
+### Important: All table/column names are snake_case
+
+PostgREST (Supabase's REST API) lowercases everything. All tables (`goals`, `tasks`, `bottlenecks`, `execution_dimension_options`, `app_settings`) and columns (`created_at`, `goal_id`, `sort_order`, etc.) use snake_case. This must match in `.from()`, `.select()`, `.order()`, `.eq()`, and data object keys in `.insert()`/`.update()`.
 
 ---
 
 ## Screen-by-Screen Data Dependencies
 
 | Screen | Reads | Writes |
-|---|---|---|
-| **Today** | `Task` (pending), `Dimensions`, `Settings` | Complete/skip task |
-| **Capture** | `Goal`, `Bottleneck`, `Dimensions` | Create `Task` |
-| **Backlog** | `Task` (all), `Goal`, `Bottleneck`, `Dimensions` | Update/delete `Task` |
-| **Foundation** | `Goal` (with counts), `Bottleneck` (with counts) | Create/update/delete `Goal` + `Bottleneck` |
+|---|---|---|---|
+| **Today** | `tasks` (pending), dimension options, settings | Complete/skip task |
+| **Capture** | `goals`, `bottlenecks`, dimension options | Create `task` |
+| **Backlog** | `tasks` (all), `goals`, `bottlenecks`, dimension options | Update/delete `task` |
+| **Foundation** | `goals` (with counts), `bottlenecks` (with counts) | Create/update/delete `goal` + `bottleneck` |
 | **Coach** | All tables (via ad-hoc fetch, NOT React Query) | Sends messages to AI API |
-| **Settings** | `ExecutionDimensionOption`, `AppSetting` | Update `AppSetting`, CRUD `ExecutionDimensionOption` |
+| **Settings** | `execution_dimension_options`, `app_settings` | Update `app_settings`, CRUD `execution_dimension_options` |
 
 ---
 
@@ -195,7 +199,7 @@ Supabase query builder types don't match the app's interface types. The code use
 ### 3. `_count` shape mismatch
 Supabase returns counts as `[{ count: number }]` not `{ _count: { ... } }`. The Foundation screen transforms this manually. New screens should follow the same pattern:
 ```ts
-const { data } = await supabase.from('Goal').select('*, bottlenecks:bottleneck(count)')
+const { data } = await supabase.from('goals').select('*, bottlenecks:bottlenecks(count)')
 const goals = data?.map(g => ({
   ...g,
   _count: { bottlenecks: (g.bottlenecks as [{ count: number }])?.[0]?.count ?? 0 }
@@ -203,7 +207,7 @@ const goals = data?.map(g => ({
 ```
 
 ### 4. Cascade deletes
-Supabase tables have `ON DELETE CASCADE` for Goal→Bottleneck→Task. But the Foundation screen also manually deletes tasks before bottlenecks to be safe (defense in depth). If you add a new child table, update the delete logic.
+Supabase tables have `ON DELETE CASCADE` for goals→bottlenecks→tasks. But the Foundation screen also manually deletes tasks before bottlenecks to be safe (defense in depth). If you add a new child table, update the delete logic.
 
 ### 5. Dependency array gotcha (Coach screen)
 The Coach screen fetches ALL data via ad-hoc `fetchCoachContext()` calls, NOT through React Query. This means `coachMessages` in the Zustand store is the ONLY state tracking conversation history. If the component unmounts, chat history is lost.
@@ -213,13 +217,15 @@ The Coach screen fetches ALL data via ad-hoc `fetchCoachContext()` calls, NOT th
 ## Supabase Schema Setup
 
 Run `supabase/schema.sql` in the Supabase SQL Editor. It includes:
-1. Table creation
-2. Auto-update triggers for `updatedAt`
+1. Table creation (all lowercase snake_case — required by PostgREST)
+2. Auto-update triggers for `updated_at`
 3. GRANTs for Data API access
 4. RLS policies (full access for anon + authenticated)
 5. Seed data (default dimension options + settings)
 
 The app is a single-user personal tool (like Swipe.ardy). The Supabase anon key is embedded in the client and RLS allows full CRUD for anon. No auth required.
+
+**Important:** All table names and column names must be lowercase snake_case. PostgREST folds unquoted identifiers to lowercase. Using camelCase (`createdAt`, `Goal`) with quotes will cause 400 errors.
 
 ---
 
