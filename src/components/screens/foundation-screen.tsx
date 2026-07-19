@@ -51,7 +51,7 @@ type GoalRow = { id: string; title: string; description: string | null; createdA
 async function fetchGoals(): Promise<GoalWithCount[]> {
   const { data } = await supabase
     .from('Goal')
-    .select('*, bottlenecks:bottleneck(count), tasks:task(count)')
+    .select('*, bottlenecks:Bottleneck(count), tasks:Task(count)')
     .order('createdAt', { ascending: false })
   const raw = (data ?? []) as GoalRow[]
   return raw.map((g: GoalRow) => ({
@@ -96,7 +96,7 @@ export function FoundationScreen() {
   const { data: bottlenecks = [], isLoading: bnsLoading } = useQuery<Bottleneck[]>({
     queryKey: ['bottlenecks'],
     queryFn: async () => {
-      const { data } = await supabase.from('Bottleneck').select('*, goal:Goal(id, title), tasks:task(count)').order('createdAt', { ascending: false })
+      const { data } = await supabase.from('Bottleneck').select('*, goal:Goal(id, title), tasks:Task(count)').order('createdAt', { ascending: false })
       const raw = (data ?? []) as ({ id: string; title: string; description: string | null; goalId: string; createdAt: string; updatedAt: string; goal: { id: string; title: string }; tasks?: unknown[] })[]
       return raw.map(b => ({
         ...b,

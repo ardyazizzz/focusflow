@@ -13,8 +13,8 @@ import type { Goal, Bottleneck, Task, DimensionOption } from '@/types'
 async function fetchCoachContext() {
   const [goalsResult, bottlenecksResult, tasksResult, optionsResult, settingsResult] =
     await Promise.all([
-      supabase.from('Goal').select('*, bottlenecks:bottleneck(count), tasks:task(count)').order('createdAt', { ascending: false }),
-      supabase.from('Bottleneck').select('*, goal:Goal(id, title), tasks:task(count)').order('createdAt', { ascending: false }),
+      supabase.from('Goal').select('*, bottlenecks:Bottleneck(count), tasks:Task(count)').order('createdAt', { ascending: false }),
+      supabase.from('Bottleneck').select('*, goal:Goal(id, title), tasks:Task(count)').order('createdAt', { ascending: false }),
       supabase.from('Task').select('*, goal:Goal(id, title), bottleneck:Bottleneck(id, title), priorityOption:ExecutionDimensionOption(id, dimension, label, sortOrder), impactOption:ExecutionDimensionOption(id, dimension, label, sortOrder), clarityOption:ExecutionDimensionOption(id, dimension, label, sortOrder), timeOption:ExecutionDimensionOption(id, dimension, label, sortOrder)').order('createdAt', { ascending: false }),
       supabase.from('ExecutionDimensionOption').select('*').order('dimension', { ascending: true }).order('sortOrder', { ascending: true }),
       supabase.from('AppSetting').select('*'),
