@@ -124,16 +124,39 @@ export default function CoachScreen() {
       const ctx = await fetchCoachContext()
       const systemPrompt = buildSystemPrompt(ctx)
 
-      const { data: apiKeySetting } = await supabase
-        .from('AppSetting')
-        .select('value')
-        .eq('key', 'gemini_api_key')
-        .maybeSingle()
+      const [deepSeekSetting, geminiSetting] = await Promise.all([
+        supabase.from('AppSetting').select('value').eq('key', 'deepseek_api_key').maybeSingle(),
+        supabase.from('AppSetting').select('value').eq('key', 'gemini_api_key').maybeSingle(),
+      ])
 
-      const apiKey = apiKeySetting?.value || import.meta.env.VITE_GEMINI_API_KEY
+      const deepSeekKey = deepSeekSetting?.data?.value || import.meta.env.VITE_DEEPSEEK_API_KEY
+      const geminiKey = geminiSetting?.data?.value || import.meta.env.VITE_GEMINI_API_KEY
 
-      if (apiKey) {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      const messages = [
+        { role: 'system' as const, content: systemPrompt },
+        ...coachMessages.map(m => ({ role: m.role === 'assistant' ? 'assistant' as const : 'user' as const, content: m.content })),
+        { role: 'user' as const, content: trimmed },
+      ]
+
+      if (deepSeekKey) {
+        const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${deepSeekKey}`,
+          },
+          body: JSON.stringify({ model: 'deepseek-chat', messages }),
+        })
+        if (!res.ok) throw new Error('DeepSeek API request failed')
+        const data = await res.json()
+        const assistantMessage = data?.choices?.[0]?.message?.content || ''
+        if (assistantMessage) {
+          addCoachMessage('assistant', assistantMessage)
+        } else {
+          throw new Error('Empty response')
+        }
+      } else if (geminiKey) {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -147,9 +170,7 @@ export default function CoachScreen() {
             ],
           }),
         })
-
-        if (!res.ok) throw new Error('API request failed')
-
+        if (!res.ok) throw new Error('Gemini API request failed')
         const data = await res.json()
         const assistantMessage = data?.candidates?.[0]?.content?.parts?.[0]?.text || ''
         if (assistantMessage) {
@@ -160,13 +181,13 @@ export default function CoachScreen() {
       } else {
         addCoachMessage(
           'assistant',
-          'To enable the AI Coach, add your Gemini API key in Settings → add a setting with key `gemini_api_key` and your API key as value. You can get a free key from [aistudio.google.com](https://aistudio.google.com/apikey).'
+          'To enable the AI Coach, add a setting with key `deepseek_api_key` (recommended, get a key at [platform.deepseek.com](https://platform.deepseek.com/api_keys)) or `gemini_api_key` (get a free key at [aistudio.google.com](https://aistudio.google.com/apikey)).'
         )
       }
     } catch {
       addCoachMessage(
         'assistant',
-        'Sorry, something went wrong. Please try again. Make sure your Gemini API key is valid and has access to the Gemini API.'
+        'Sorry, something went wrong. Please try again. Make sure your API key is valid.'
       )
     } finally {
       setIsLoading(false)

@@ -27,6 +27,7 @@ jobs:
         run: |
           echo "VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
           echo "VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" >> .env
           echo "VITE_GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
       - run: npm run build
       - uses: actions/configure-pages@v4
