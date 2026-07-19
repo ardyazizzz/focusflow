@@ -126,7 +126,7 @@ export default function CoachScreen() {
 
       const aiKey = localStorage.getItem('focusflow_ai_key') || ''
       const aiProvider = localStorage.getItem('focusflow_ai_provider') || 'deepseek'
-      const aiModel = localStorage.getItem('focusflow_ai_model') || 'deepseek-chat'
+      const aiModel = localStorage.getItem('focusflow_ai_model') || 'deepseek-v4-flash'
 
       const messages = [
         { role: 'system' as const, content: systemPrompt },

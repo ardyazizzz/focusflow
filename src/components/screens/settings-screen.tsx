@@ -155,13 +155,13 @@ export default function SettingsScreen() {
   const [aiApiKey, setAiApiKey] = useState(() => localStorage.getItem('focusflow_ai_key') || '')
 
   const aiModels: Record<string, string[]> = {
-    deepseek: ['deepseek-chat', 'deepseek-reasoner'],
-    gemini: ['gemini-2.0-flash', 'gemini-2.0-pro'],
+    deepseek: ['deepseek-v4-flash', 'deepseek-v4-pro'],
+    gemini: ['gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.5-pro'],
   }
 
   function handleProviderChange(val: string) {
     setAiProvider(val)
-    const defaultModel = val === 'deepseek' ? 'deepseek-chat' : 'gemini-2.0-flash'
+    const defaultModel = val === 'deepseek' ? 'deepseek-v4-flash' : 'gemini-3.5-flash'
     setAiModel(defaultModel)
   }
 
