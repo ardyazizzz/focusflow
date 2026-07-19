@@ -8,22 +8,8 @@ import {
   ChevronDown,
   CalendarDays,
   StickyNote,
-  GripVertical,
+  Plus,
 } from 'lucide-react'
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core'
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -148,43 +134,6 @@ export function BacklogScreen() {
     },
     enabled: activeTab === 'backlog',
   })
-
-  // ── Drag & Drop ───────────────────────────────────────────────
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  )
-
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-
-    const oldIndex = filteredTasks.findIndex(t => t.id === active.id)
-    const newIndex = filteredTasks.findIndex(t => t.id === over.id)
-    if (oldIndex === -1 || newIndex === -1) return
-
-    const reordered = [...filteredTasks]
-    const [moved] = reordered.splice(oldIndex, 1)
-    reordered.splice(newIndex, 0, moved)
-
-    // Optimistic: update the cache immediately so UI reflects new order
-    const currentTasks = queryClient.getQueryData<Task[]>(['tasks'])
-    if (currentTasks) {
-      const updatedTasks = currentTasks.map(t => {
-        const reorderedIndex = reordered.findIndex(r => r.id === t.id)
-        if (reorderedIndex !== -1) {
-          return { ...t, queue_order: (reorderedIndex + 1) * 100 }
-        }
-        return t
-      })
-      queryClient.setQueryData(['tasks'], updatedTasks)
-    }
-
-    // Sync to Supabase in background
-    const changed = reordered.map((task, i) => ({ id: task.id, queue_order: (i + 1) * 100 }))
-    for (const { id, queue_order } of changed) {
-      await supabase.from('tasks').update({ queue_order }).eq('id', id)
-    }
-  }
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Task> }) => {
@@ -342,22 +291,31 @@ export function BacklogScreen() {
             </p>
           </div>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={filteredTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {filteredTasks.map((task) => (
-                  <SortableTaskCard
-                    key={task.id}
-                    task={task}
-                    dimNames={dimNames}
-                    onEdit={() => openEdit(task)}
-                    onDelete={() => setDeletingTask(task)}
-                    formatDate={formatDate}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+          <div className="space-y-2">
+            {filteredTasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                dimNames={dimNames}
+                onEdit={() => openEdit(task)}
+                onDelete={() => setDeletingTask(task)}
+                formatDate={formatDate}
+                onQueueChange={(newOrder) => {
+                  const updates = tasks.map(t => ({
+                    id: t.id,
+                    queue_order: t.id === task.id ? newOrder : t.queue_order,
+                  }))
+                  const currentTasks = queryClient.getQueryData<Task[]>(['tasks'])
+                  if (currentTasks) {
+                    queryClient.setQueryData(['tasks'], currentTasks.map(t =>
+                      t.id === task.id ? { ...t, queue_order: newOrder } : t
+                    ))
+                  }
+                  supabase.from('tasks').update({ queue_order: newOrder }).eq('id', task.id)
+                }}
+              />
+            ))}
+          </div>
         )}
       </div>
 
@@ -550,54 +508,70 @@ export function BacklogScreen() {
   )
 }
 
-// ── Sortable Task Card (drag-and-drop wrapper) ──────────────────
-function SortableTaskCard(props: {
-  task: Task
-  dimNames: Record<string, string>
-  onEdit: () => void
-  onDelete: () => void
-  formatDate: (d: string) => string
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: props.task.id })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  }
-
-  return (
-    <div ref={setNodeRef} style={style} className={isDragging ? 'relative z-50' : ''}>
-      <TaskCard {...props} dragHandleProps={{ ...attributes, ...listeners }} />
-    </div>
-  )
-}
-
 function TaskCard({
   task,
   dimNames,
   onEdit,
   onDelete,
   formatDate,
-  dragHandleProps,
+  onQueueChange,
 }: {
   task: Task
   dimNames: Record<string, string>
   onEdit: () => void
   onDelete: () => void
   formatDate: (d: string) => string
-  dragHandleProps?: Record<string, unknown>
+  onQueueChange?: (order: number) => void
 }) {
   const isCompleted = task.status === 'completed'
+  const [editingOrder, setEditingOrder] = useState(false)
+  const [orderInput, setOrderInput] = useState('')
+
+  const inQueue = task.queue_order < 9999
+  const queueNumber = inQueue ? Math.floor(task.queue_order / 100) : null
+
+  function handleQueueClick() {
+    setOrderInput(queueNumber?.toString() ?? '')
+    setEditingOrder(true)
+  }
+
+  function handleQueueSave() {
+    const val = parseInt(orderInput, 10)
+    if (!isNaN(val) && val > 0 && onQueueChange) {
+      onQueueChange(val * 100)
+    }
+    setEditingOrder(false)
+  }
 
   return (
     <div className="group flex flex-col gap-2 rounded-lg border border-border/60 bg-card/50 px-4 py-3 transition-colors hover:bg-card">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <button {...dragHandleProps} className="cursor-grab active:cursor-grabbing touch-none shrink-0 px-0.5">
-            <GripVertical className="size-3.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors" />
-          </button>
+          {/* Queue number badge */}
+          {editingOrder ? (
+            <input
+              autoFocus
+              type="number"
+              min="1"
+              value={orderInput}
+              onChange={(e) => setOrderInput(e.target.value)}
+              onBlur={handleQueueSave}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleQueueSave(); if (e.key === 'Escape') setEditingOrder(false) }}
+              className="w-10 h-7 text-xs text-center rounded border border-border bg-background shrink-0"
+            />
+          ) : (
+            <button
+              onClick={handleQueueClick}
+              className={`shrink-0 flex items-center justify-center w-7 h-7 rounded text-xs font-medium transition-colors ${
+                inQueue
+                  ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+              title="Click to set queue position"
+            >
+              {inQueue ? queueNumber : <Plus className="size-3" />}
+            </button>
+          )}
           <span
             className={`text-sm font-medium truncate ${isCompleted ? 'text-muted-foreground line-through' : ''}`}
           >
