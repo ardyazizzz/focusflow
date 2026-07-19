@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -8,6 +8,7 @@ import {
   Trash2,
   Loader2,
   GripVertical,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -40,6 +41,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
 import type { SettingsData, DimensionsData, DimensionOption } from '@/types'
 
@@ -140,6 +148,42 @@ export default function SettingsScreen() {
     }
     return result as Record<DimensionKey, string>
   }, [getName])
+
+  // ── AI Coach state ────────────────────────────────────────────────
+  const [aiProvider, setAiProvider] = useState('deepseek')
+  const [aiApiKey, setAiApiKey] = useState('')
+
+  // Load current AI settings from Supabase
+  useEffect(() => {
+    ;(async () => {
+      const [ds, gm] = await Promise.all([
+        supabase.from('app_settings').select('value').eq('key', 'deepseek_api_key').maybeSingle(),
+        supabase.from('app_settings').select('value').eq('key', 'gemini_api_key').maybeSingle(),
+      ])
+      if (ds?.data?.value) { setAiProvider('deepseek'); setAiApiKey(ds.data.value) }
+      else if (gm?.data?.value) { setAiProvider('gemini'); setAiApiKey(gm.data.value) }
+    })()
+  }, [])
+
+  const saveAiMutation = useMutation({
+    mutationFn: async ({ provider, key }: { provider: string; key: string }) => {
+      const settingKey = provider === 'deepseek' ? 'deepseek_api_key' : 'gemini_api_key'
+      const { data: existing } = await supabase.from('app_settings').select('id').eq('key', settingKey).maybeSingle()
+      if (existing) {
+        const { error } = await supabase.from('app_settings').update({ value: key }).eq('key', settingKey)
+        if (error) throw new Error(error.message)
+      } else {
+        const { error } = await supabase.from('app_settings').insert({ key: settingKey, value: key })
+        if (error) throw new Error(error.message)
+      }
+    },
+    onSuccess: () => {
+      toast.success('AI Coach settings saved')
+    },
+    onError: () => {
+      toast.error('Failed to save AI settings')
+    },
+  })
 
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingOption, setEditingOption] = useState<DimensionOption | null>(null)
@@ -312,6 +356,57 @@ export default function SettingsScreen() {
               <span>5 min</span>
               <span>60 min</span>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* ── AI Coach ────────────────────────────────────────────── */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-4 text-primary" />
+              <CardTitle className="text-base">AI Coach</CardTitle>
+            </div>
+            <CardDescription>
+              Connect an AI provider for personalized coaching based on your goals and tasks.
+              Get a free key at <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noreferrer" className="underline">platform.deepseek.com</a> or <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline">aistudio.google.com</a>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-2">
+              <Label>Provider</Label>
+              <Select value={aiProvider} onValueChange={setAiProvider}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="deepseek">DeepSeek (recommended)</SelectItem>
+                  <SelectItem value="gemini">Gemini (free tier)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="ai-key">API Key</Label>
+              <Input
+                id="ai-key"
+                type="password"
+                value={aiApiKey}
+                onChange={(e) => setAiApiKey(e.target.value)}
+                placeholder="sk-..."
+              />
+            </div>
+            <Button
+              onClick={() => saveAiMutation.mutate({ provider: aiProvider, key: aiApiKey })}
+              disabled={!aiApiKey.trim() || saveAiMutation.isPending}
+              size="sm"
+            >
+              {saveAiMutation.isPending && <Loader2 className="size-3.5 animate-spin" />}
+              Save
+            </Button>
+            {aiApiKey && (
+              <p className="text-xs text-muted-foreground">
+                Using {aiProvider === 'deepseek' ? 'DeepSeek' : 'Gemini'} — key saved to database.
+              </p>
+            )}
           </CardContent>
         </Card>
 
