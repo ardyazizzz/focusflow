@@ -151,10 +151,23 @@ export default function SettingsScreen() {
 
   // ── AI Coach state (localStorage — never stored in Supabase) ──────
   const [aiProvider, setAiProvider] = useState(() => localStorage.getItem('focusflow_ai_provider') || 'deepseek')
+  const [aiModel, setAiModel] = useState(() => localStorage.getItem('focusflow_ai_model') || 'deepseek-chat')
   const [aiApiKey, setAiApiKey] = useState(() => localStorage.getItem('focusflow_ai_key') || '')
+
+  const aiModels: Record<string, string[]> = {
+    deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+    gemini: ['gemini-2.0-flash', 'gemini-2.0-pro'],
+  }
+
+  function handleProviderChange(val: string) {
+    setAiProvider(val)
+    const defaultModel = val === 'deepseek' ? 'deepseek-chat' : 'gemini-2.0-flash'
+    setAiModel(defaultModel)
+  }
 
   function saveAiSettings() {
     localStorage.setItem('focusflow_ai_provider', aiProvider)
+    localStorage.setItem('focusflow_ai_model', aiModel)
     localStorage.setItem('focusflow_ai_key', aiApiKey)
     toast.success('AI Coach settings saved')
   }
@@ -348,13 +361,26 @@ export default function SettingsScreen() {
           <CardContent className="space-y-4">
             <div className="grid gap-2">
               <Label>Provider</Label>
-              <Select value={aiProvider} onValueChange={setAiProvider}>
+              <Select value={aiProvider} onValueChange={handleProviderChange}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="deepseek">DeepSeek (recommended)</SelectItem>
                   <SelectItem value="gemini">Gemini (free tier)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Model</Label>
+              <Select value={aiModel} onValueChange={setAiModel}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {aiModels[aiProvider]?.map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -126,6 +126,7 @@ export default function CoachScreen() {
 
       const aiKey = localStorage.getItem('focusflow_ai_key') || ''
       const aiProvider = localStorage.getItem('focusflow_ai_provider') || 'deepseek'
+      const aiModel = localStorage.getItem('focusflow_ai_model') || 'deepseek-chat'
 
       const messages = [
         { role: 'system' as const, content: systemPrompt },
@@ -140,7 +141,7 @@ export default function CoachScreen() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${aiKey}`,
           },
-          body: JSON.stringify({ model: 'deepseek-chat', messages }),
+          body: JSON.stringify({ model: aiModel, messages }),
         })
         if (!res.ok) throw new Error('DeepSeek API request failed')
         const data = await res.json()
@@ -151,7 +152,7 @@ export default function CoachScreen() {
           throw new Error('Empty response')
         }
       } else if (aiProvider === 'gemini' && aiKey) {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${aiKey}`, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel}:generateContent?key=${aiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
