@@ -5,27 +5,34 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 const isConfigured = supabaseUrl !== '' && supabaseAnonKey !== ''
 
-export const supabase = isConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : ({
-      from: () => ({
-        select: () => ({
-          eq: () => ({ single: () => Promise.resolve({ data: null, error: null }), order: () => Promise.resolve({ data: null, error: null }) }),
-          order: () => Promise.resolve({ data: null, error: null }),
-          single: () => Promise.resolve({ data: null, error: null }),
-          then: (resolve: (v: { data: null, error: null }) => void) => Promise.resolve({ data: null, error: null }).then(resolve),
-        }),
-        insert: () => ({
-          select: () => ({ single: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }) }),
-        }),
-        update: () => ({
-          eq: () => ({
-            select: () => ({ single: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }) }),
-          }),
-        }),
-        delete: () => ({
-          eq: () => ({ then: (resolve: (v: { data: null, error: null }) => void) => Promise.resolve({ data: null, error: null }).then(resolve) }),
-        }),
-        then: (resolve: (v: { data: null, error: null }) => void) => Promise.resolve({ data: null, error: null }).then(resolve),
-      }),
-    } as unknown as ReturnType<typeof createClient>)
+function createMockChain(hasError = false) {
+  return new Proxy({} as Record<string, unknown>, {
+    get(_target, prop: string) {
+      if (prop === 'then') {
+        return (resolve: (v: unknown) => void) =>
+          Promise.resolve({ data: null, error: hasError ? new Error('Supabase not configured') : null }).then(resolve)
+      }
+      if (prop === 'catch') {
+        return (fn: (e: Error) => void) => {
+          if (hasError) fn(new Error('Supabase not configured'))
+          return Promise.resolve()
+        }
+      }
+      if (prop === 'finally') {
+        return (fn: () => void) => Promise.resolve().then(fn)
+      }
+      return () => createMockChain(hasError)
+    },
+  }) as any
+}
+
+let realClient: ReturnType<typeof createClient> | null = null
+try {
+  if (isConfigured) {
+    realClient = createClient(supabaseUrl, supabaseAnonKey)
+  }
+} catch {
+  realClient = null
+}
+
+export const supabase = realClient ?? createMockChain(false)
