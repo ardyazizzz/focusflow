@@ -124,13 +124,8 @@ export default function CoachScreen() {
       const ctx = await fetchCoachContext()
       const systemPrompt = buildSystemPrompt(ctx)
 
-      const [deepSeekSetting, geminiSetting] = await Promise.all([
-        supabase.from('app_settings').select('value').eq('key', 'deepseek_api_key').maybeSingle(),
-        supabase.from('app_settings').select('value').eq('key', 'gemini_api_key').maybeSingle(),
-      ])
-
-      const deepSeekKey = deepSeekSetting?.data?.value || import.meta.env.VITE_DEEPSEEK_API_KEY
-      const geminiKey = geminiSetting?.data?.value || import.meta.env.VITE_GEMINI_API_KEY
+      const aiKey = localStorage.getItem('focusflow_ai_key') || ''
+      const aiProvider = localStorage.getItem('focusflow_ai_provider') || 'deepseek'
 
       const messages = [
         { role: 'system' as const, content: systemPrompt },
@@ -138,12 +133,12 @@ export default function CoachScreen() {
         { role: 'user' as const, content: trimmed },
       ]
 
-      if (deepSeekKey) {
+      if (aiProvider === 'deepseek' && aiKey) {
         const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${deepSeekKey}`,
+            'Authorization': `Bearer ${aiKey}`,
           },
           body: JSON.stringify({ model: 'deepseek-chat', messages }),
         })
@@ -155,8 +150,8 @@ export default function CoachScreen() {
         } else {
           throw new Error('Empty response')
         }
-      } else if (geminiKey) {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
+      } else if (aiProvider === 'gemini' && aiKey) {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${aiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -181,7 +176,7 @@ export default function CoachScreen() {
       } else {
         addCoachMessage(
           'assistant',
-          'To enable the AI Coach, add a setting with key `deepseek_api_key` (recommended, get a key at [platform.deepseek.com](https://platform.deepseek.com/api_keys)) or `gemini_api_key` (get a free key at [aistudio.google.com](https://aistudio.google.com/apikey)).'
+          'To enable the AI Coach, go to **Settings → AI Coach**, pick DeepSeek or Gemini, paste your API key, and save. Get a free key at [platform.deepseek.com](https://platform.deepseek.com/api_keys) (recommended) or [aistudio.google.com](https://aistudio.google.com/apikey).'
         )
       }
     } catch {

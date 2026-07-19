@@ -149,41 +149,15 @@ export default function SettingsScreen() {
     return result as Record<DimensionKey, string>
   }, [getName])
 
-  // ── AI Coach state ────────────────────────────────────────────────
-  const [aiProvider, setAiProvider] = useState('deepseek')
-  const [aiApiKey, setAiApiKey] = useState('')
+  // ── AI Coach state (localStorage — never stored in Supabase) ──────
+  const [aiProvider, setAiProvider] = useState(() => localStorage.getItem('focusflow_ai_provider') || 'deepseek')
+  const [aiApiKey, setAiApiKey] = useState(() => localStorage.getItem('focusflow_ai_key') || '')
 
-  // Load current AI settings from Supabase
-  useEffect(() => {
-    ;(async () => {
-      const [ds, gm] = await Promise.all([
-        supabase.from('app_settings').select('value').eq('key', 'deepseek_api_key').maybeSingle(),
-        supabase.from('app_settings').select('value').eq('key', 'gemini_api_key').maybeSingle(),
-      ])
-      if (ds?.data?.value) { setAiProvider('deepseek'); setAiApiKey(ds.data.value) }
-      else if (gm?.data?.value) { setAiProvider('gemini'); setAiApiKey(gm.data.value) }
-    })()
-  }, [])
-
-  const saveAiMutation = useMutation({
-    mutationFn: async ({ provider, key }: { provider: string; key: string }) => {
-      const settingKey = provider === 'deepseek' ? 'deepseek_api_key' : 'gemini_api_key'
-      const { data: existing } = await supabase.from('app_settings').select('id').eq('key', settingKey).maybeSingle()
-      if (existing) {
-        const { error } = await supabase.from('app_settings').update({ value: key }).eq('key', settingKey)
-        if (error) throw new Error(error.message)
-      } else {
-        const { error } = await supabase.from('app_settings').insert({ key: settingKey, value: key })
-        if (error) throw new Error(error.message)
-      }
-    },
-    onSuccess: () => {
-      toast.success('AI Coach settings saved')
-    },
-    onError: () => {
-      toast.error('Failed to save AI settings')
-    },
-  })
+  function saveAiSettings() {
+    localStorage.setItem('focusflow_ai_provider', aiProvider)
+    localStorage.setItem('focusflow_ai_key', aiApiKey)
+    toast.success('AI Coach settings saved')
+  }
 
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingOption, setEditingOption] = useState<DimensionOption | null>(null)
@@ -395,16 +369,15 @@ export default function SettingsScreen() {
               />
             </div>
             <Button
-              onClick={() => saveAiMutation.mutate({ provider: aiProvider, key: aiApiKey })}
-              disabled={!aiApiKey.trim() || saveAiMutation.isPending}
+              onClick={saveAiSettings}
+              disabled={!aiApiKey.trim()}
               size="sm"
             >
-              {saveAiMutation.isPending && <Loader2 className="size-3.5 animate-spin" />}
               Save
             </Button>
             {aiApiKey && (
               <p className="text-xs text-muted-foreground">
-                Using {aiProvider === 'deepseek' ? 'DeepSeek' : 'Gemini'} — key saved to database.
+                Using {aiProvider === 'deepseek' ? 'DeepSeek' : 'Gemini'} — key stored in your browser only.
               </p>
             )}
           </CardContent>
