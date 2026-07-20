@@ -9,6 +9,7 @@ import {
   CalendarDays,
   StickyNote,
   Plus,
+  RotateCcw,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -326,6 +327,10 @@ export function BacklogScreen() {
                     dimNames={dimNames}
                     onEdit={() => openEdit(task)}
                     onDelete={() => setDeletingTask(task)}
+                    onReopen={async () => {
+                      await supabase.from('tasks').update({ status: 'pending', completed_at: null }).eq('id', task.id)
+                      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+                    }}
                     formatDate={formatDate}
                     onQueueChange={async (newOrder) => {
                       queryClient.setQueryData(['tasks'], (old: Task[] | undefined) =>
@@ -536,6 +541,7 @@ function TaskCard({
   dimNames,
   onEdit,
   onDelete,
+  onReopen,
   formatDate,
   onQueueChange,
 }: {
@@ -543,6 +549,7 @@ function TaskCard({
   dimNames: Record<string, string>
   onEdit: () => void
   onDelete: () => void
+  onReopen?: () => Promise<void>
   formatDate: (d: string) => string
   onQueueChange?: (order: number) => void
 }) {
@@ -615,15 +622,27 @@ function TaskCard({
           </Badge>
         </div>
         <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            onClick={onEdit}
-          >
-            <Pencil className="size-3.5" />
-            <span className="sr-only">Edit</span>
-          </Button>
+          {isCompleted ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+              onClick={onReopen}
+            >
+              <RotateCcw className="size-3.5" />
+              <span className="sr-only">Reopen</span>
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={onEdit}
+            >
+              <Pencil className="size-3.5" />
+              <span className="sr-only">Edit</span>
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
