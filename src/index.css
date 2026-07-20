@@ -119,4 +119,16 @@
   body {
     @apply bg-background text-foreground;
   }
+  button:not(:disabled),
+  a[href],
+  [role="button"]:not(:disabled),
+  [role="tab"]:not([aria-disabled="true"]),
+  label[for] {
+    cursor: pointer;
+  }
+  button:not(:disabled):active,
+  [role="button"]:not(:disabled):active {
+    transform: scale(0.97);
+    transition: transform 0.05s ease-out;
+  }
 }
