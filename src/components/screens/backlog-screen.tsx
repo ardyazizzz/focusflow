@@ -13,6 +13,9 @@ import {
   Target,
   Flag,
   TriangleAlert,
+  Zap,
+  Eye,
+  Clock,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -690,6 +693,36 @@ function TaskCard({
             <span className="inline-flex items-center gap-1.5">
               <CalendarDays className="size-3" />
               {formatDate(task.deadline)}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Hover-revealed: Impact, Clarity, Time */}
+      {(task.impact_option?.label || task.clarity_option?.label || task.time_option?.label) && (
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+          {task.impact_option?.label && (
+            <span className="inline-flex items-center gap-1.5">
+              <Zap className="size-3" />
+              {task.impact_option.label}
+            </span>
+          )}
+          {task.impact_option?.label && (task.clarity_option?.label || task.time_option?.label) && (
+            <span className="text-border">·</span>
+          )}
+          {task.clarity_option?.label && (
+            <span className="inline-flex items-center gap-1.5">
+              <Eye className="size-3" />
+              {task.clarity_option.label}
+            </span>
+          )}
+          {task.clarity_option?.label && task.time_option?.label && (
+            <span className="text-border">·</span>
+          )}
+          {task.time_option?.label && (
+            <span className="inline-flex items-center gap-1.5">
+              <Clock className="size-3" />
+              {task.time_option.label}
             </span>
           )}
         </div>
