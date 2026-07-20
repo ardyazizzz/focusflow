@@ -10,9 +10,9 @@ import {
   Timer,
   ListChecks,
   Square,
-  ArrowRight,
   Sparkles,
   Target,
+  TriangleAlert,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -346,12 +346,19 @@ export function FocusScreen() {
                   {nowTask.title}
                 </h3>
                 {(nowTask.goal?.title || nowTask.bottleneck?.title) && (
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                    {nowTask.goal?.title && <span>{nowTask.goal.title}</span>}
-                    {nowTask.goal?.title && nowTask.bottleneck?.title && (
-                      <ArrowRight className="size-3" />
+                  <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
+                    {nowTask.goal?.title && (
+                      <div className="flex items-start gap-1.5 min-w-0">
+                        <Target className="size-3 mt-0.5 shrink-0" />
+                        <span className="line-clamp-2">{nowTask.goal.title}</span>
+                      </div>
                     )}
-                    {nowTask.bottleneck?.title && <span>{nowTask.bottleneck.title}</span>}
+                    {nowTask.bottleneck?.title && (
+                      <div className="flex items-start gap-1.5 min-w-0">
+                        <TriangleAlert className="size-3 mt-0.5 shrink-0" />
+                        <span className="line-clamp-2">{nowTask.bottleneck.title}</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="mt-3">
