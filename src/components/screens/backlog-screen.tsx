@@ -611,7 +611,7 @@ function TaskCard({
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2">
-            <p className={`text-sm font-medium leading-snug flex-1 ${isCompleted ? 'text-muted-foreground line-through' : ''}`}>
+            <p className={`text-sm leading-snug flex-1 ${isCompleted ? 'text-muted-foreground line-through' : ''}`}>
               {task.title}
             </p>
             {isCompleted && (
