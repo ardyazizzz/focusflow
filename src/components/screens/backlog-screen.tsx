@@ -12,7 +12,7 @@ import {
   RotateCcw,
   Target,
   Flag,
-  Link2,
+  Construction,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -667,7 +667,7 @@ function TaskCard({
           )}
           {task.bottleneck?.title && (
             <span className="inline-flex items-center gap-1">
-              <Link2 className="size-3" />
+              <Construction className="size-3" />
               {task.bottleneck.title}
             </span>
           )}
