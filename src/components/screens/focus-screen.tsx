@@ -112,7 +112,7 @@ async function fetchSettings(): Promise<SettingsData> {
 async function completeTask(taskId: string): Promise<Task> {
   const { data, error } = await supabase
     .from('tasks')
-    .update({ status: 'completed', completed_at: new Date().toISOString() })
+    .update({ status: 'completed', completed_at: new Date().toISOString(), queue_order: 9999 })
     .eq('id', taskId)
     .select(TASK_SELECT)
     .single()
