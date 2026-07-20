@@ -122,7 +122,7 @@ async function completeTask(taskId: string): Promise<Task> {
 async function skipTask(taskId: string): Promise<Task> {
   const { data, error } = await supabase
     .from('tasks')
-    .update({ status: 'pending', completed_at: null })
+    .update({ queue_order: 9999 })
     .eq('id', taskId)
     .select(TASK_SELECT)
     .single()
@@ -415,14 +415,9 @@ export function FocusScreen() {
       {/* NOW — Top task (when NOT focusing) */}
       {!activeTask && topTask && (
         <div className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between">
-            <span className="text-xs font-semibold text-primary uppercase tracking-wider">
+          <span className="text-xs font-semibold text-primary uppercase tracking-wider">
               Now
             </span>
-            <span className="text-xs text-muted-foreground">
-              {tasks.length > 1 ? `1 of ${tasks.length} in queue` : 'Only task in queue'}
-            </span>
-          </div>
 
           <div className="rounded-2xl border-2 border-primary/20 bg-gradient-to-b from-primary/5 via-background to-background p-5">
             <div className="flex items-start justify-between gap-3 mb-4">
