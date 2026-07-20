@@ -10,10 +10,12 @@ import {
   StickyNote,
   Plus,
   RotateCcw,
+  Target,
+  Flag,
+  Link2,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -578,50 +580,46 @@ function TaskCard({
   }
 
   return (
-    <div className="group flex flex-col gap-2 rounded-lg border border-border/60 bg-card/50 px-4 py-3 transition-colors hover:bg-card">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          {/* Queue number badge */}
-          {editingOrder ? (
-            <input
-              autoFocus
-              type="number"
-              min="1"
-              value={orderInput}
-              onChange={(e) => setOrderInput(e.target.value)}
-              onBlur={handleQueueSave}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleQueueSave(); if (e.key === 'Escape') setEditingOrder(false) }}
-              className="w-10 h-7 text-xs text-center rounded border border-border bg-background shrink-0"
-            />
-          ) : (
-            <button
-              onClick={handleQueueClick}
-              className={`shrink-0 flex items-center justify-center w-7 h-7 rounded text-xs font-medium transition-colors ${
-                inQueue
-                  ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-              title="Click to set queue position"
-            >
-              {inQueue ? queueNumber : <Plus className="size-3" />}
-            </button>
-          )}
-          <span
-            className={`text-sm font-medium ${isCompleted ? 'text-muted-foreground line-through' : ''}`}
+    <div className={`group flex flex-col gap-3 rounded-lg border bg-card/30 px-4 py-3.5 transition-colors ${
+      inQueue ? 'border-primary/20 bg-primary/[0.03]' : 'border-border/60 hover:bg-card/60'
+    }`}>
+      {/* Top row: queue badge, description, action buttons */}
+      <div className="flex items-start gap-3">
+        {editingOrder ? (
+          <input
+            autoFocus
+            type="number"
+            min="1"
+            value={orderInput}
+            onChange={(e) => setOrderInput(e.target.value)}
+            onBlur={handleQueueSave}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleQueueSave(); if (e.key === 'Escape') setEditingOrder(false) }}
+            className="shrink-0 w-9 h-7 text-xs text-center rounded-md border border-primary bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        ) : (
+          <button
+            onClick={handleQueueClick}
+            className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-md text-xs font-medium transition-colors ${
+              inQueue
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80 border border-dashed border-border'
+            }`}
+            title="Click to set queue position"
           >
-            {task.title}
-          </span>
-          <Badge
-            className={
-              isCompleted
-                ? 'bg-emerald-100 text-emerald-700 border-emerald-200 shrink-0'
-                : 'bg-amber-100 text-amber-700 border-amber-200 shrink-0'
-            }
-          >
-            {task.status}
-          </Badge>
+            {inQueue ? queueNumber : <Plus className="size-3.5" />}
+          </button>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-2">
+            <p className={`text-sm font-medium leading-snug flex-1 ${isCompleted ? 'text-muted-foreground line-through' : ''}`}>
+              {task.title}
+            </p>
+            {isCompleted && (
+              <span className="shrink-0 size-2 rounded-full bg-emerald-500 mt-1.5" title="Completed" />
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
           {isCompleted ? (
             <Button
               variant="ghost"
@@ -636,7 +634,7 @@ function TaskCard({
             <Button
               variant="ghost"
               size="icon"
-              className="size-7"
+              className="size-7 text-muted-foreground hover:text-foreground"
               onClick={onEdit}
             >
               <Pencil className="size-3.5" />
@@ -646,7 +644,7 @@ function TaskCard({
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 text-destructive hover:text-destructive"
+            className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             onClick={onDelete}
           >
             <Trash2 className="size-3.5" />
@@ -655,31 +653,54 @@ function TaskCard({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
-          <ChevronDown className="size-3" />
-          {task.goal?.title ?? '—'}
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <ChevronDown className="size-3 rotate-90" />
-          {task.bottleneck?.title ?? '—'}
-        </span>
-        <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-5">
-          {task.priority_option.label}
-        </Badge>
-        {task.deadline && (
-          <span className="inline-flex items-center gap-1">
-            <CalendarDays className="size-3" />
-            {formatDate(task.deadline)}
-          </span>
-        )}
-      </div>
+      {/* Meta row: goal, bottleneck, priority, deadline */}
+      {(task.goal?.title || task.bottleneck?.title) && (
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground">
+          {task.goal?.title && (
+            <span className="inline-flex items-center gap-1">
+              <Target className="size-3" />
+              {task.goal.title}
+            </span>
+          )}
+          {task.goal?.title && task.bottleneck?.title && (
+            <span className="text-border">›</span>
+          )}
+          {task.bottleneck?.title && (
+            <span className="inline-flex items-center gap-1">
+              <Link2 className="size-3" />
+              {task.bottleneck.title}
+            </span>
+          )}
+        </div>
+      )}
 
+      {/* Bottom row: priority + deadline */}
+      {(task.priority_option.label || task.deadline) && (
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground">
+          {task.priority_option.label && (
+            <span className="inline-flex items-center gap-1.5">
+              <Flag className="size-3" />
+              {task.priority_option.label}
+            </span>
+          )}
+          {task.priority_option.label && task.deadline && (
+            <span className="text-border">·</span>
+          )}
+          {task.deadline && (
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarDays className="size-3" />
+              {formatDate(task.deadline)}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Notes */}
       {task.notes && (
-        <p className="text-xs text-muted-foreground line-clamp-1 flex items-center gap-1">
-          <StickyNote className="size-3 shrink-0" />
-          {task.notes}
-        </p>
+        <div className="flex items-start gap-1.5 pl-10 text-xs text-muted-foreground">
+          <StickyNote className="size-3 shrink-0 mt-0.5" />
+          <span className="line-clamp-2">{task.notes}</span>
+        </div>
       )}
     </div>
   )
