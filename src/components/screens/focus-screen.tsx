@@ -8,10 +8,11 @@ import {
   SkipForward,
   Plus,
   Timer,
-  Target,
-  Sparkles,
-  ArrowRight,
   ListChecks,
+  Square,
+  ArrowRight,
+  Sparkles,
+  Target,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -173,8 +174,9 @@ export function FocusScreen() {
   const hour = now.getHours()
   const activeTask = tasks.find((t) => t.id === activeTaskId) ?? null
   const topTask = tasks[0] ?? null
-  const upNext = tasks.slice(1, 4)
-  const hasMoreTasks = tasks.length > 4
+  const nowTask = activeTask ?? topTask
+  const otherTasks = tasks.filter(t => t.id !== nowTask?.id).slice(0, 3)
+  const hasMore = tasks.length - (nowTask ? 1 : 0) - otherTasks.length > 0
 
   const completeMutation = useMutation({
     mutationFn: completeTask,
@@ -326,157 +328,116 @@ export function FocusScreen() {
         </div>
       )}
 
-      {/* Pomodoro timer (when focusing) */}
-      {activeTask && (
-        <div className="flex flex-col items-center gap-6 rounded-2xl bg-gradient-to-b from-primary/5 to-transparent border border-primary/20 px-6 py-10">
-          <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <Timer className="size-3.5" />
-            Focusing on
-          </p>
-          <h2 className="text-lg font-semibold text-center max-w-sm">
-            {activeTask.title}
-          </h2>
-
-          <div className="relative flex items-center justify-center">
-            <svg className="size-48 -rotate-90" viewBox="0 0 192 192">
-              <circle
-                cx="96"
-                cy="96"
-                r="84"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="6"
-                className="text-muted"
-              />
-              <circle
-                cx="96"
-                cy="96"
-                r="84"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="6"
-                strokeLinecap="round"
-                strokeDasharray={2 * Math.PI * 84}
-                strokeDashoffset={
-                  2 * Math.PI * 84 * (1 - progressPercent / 100)
-                }
-                className="text-primary transition-all duration-1000 ease-linear"
-              />
-            </svg>
-            <div className="absolute flex flex-col items-center">
-              <span className="text-4xl font-bold tabular-nums tracking-tight">
-                {formatTime(pomodoroState.timeRemaining)}
-              </span>
-              <span className="mt-1 text-xs text-muted-foreground">
-                {pomodoroState.isRunning ? 'Focusing' : 'Paused'}
-              </span>
-            </div>
-          </div>
-
-          <div className="w-full max-w-xs">
-            <Progress value={progressPercent} className="h-1.5" />
-          </div>
-
-          <div className="flex items-center gap-3">
-            {pomodoroState.isRunning ? (
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={pausePomodoro}
-                className="gap-2 rounded-xl"
-              >
-                <Pause className="size-4" />
-                Pause
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={resumePomodoro}
-                className="gap-2 rounded-xl"
-              >
-                <Play className="size-4" />
-                Resume
-              </Button>
-            )}
-            <Button
-              size="lg"
-              onClick={() => completeMutation.mutate(activeTask.id)}
-              disabled={completeMutation.isPending}
-              className="gap-2 rounded-xl"
-            >
-              <CheckCircle2 className="size-4" />
-              {completeMutation.isPending ? 'Completing...' : 'Complete'}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* NOW — Top task (when NOT focusing) */}
-      {!activeTask && topTask && (
+      {/* NOW — always visible, timer inside when focusing */}
+      {nowTask && (
         <div className="flex flex-col gap-3">
           <span className="text-xs font-semibold text-primary uppercase tracking-wider">
-              Now
-            </span>
+            {activeTask ? 'Focusing' : 'Now'}
+          </span>
 
-          <div className="rounded-2xl border-2 border-primary/20 bg-gradient-to-b from-primary/5 via-background to-background p-5">
+          <div className={`rounded-2xl border-2 p-5 transition-all ${
+            activeTask
+              ? 'border-primary/30 bg-gradient-to-b from-primary/5 to-background'
+              : 'border-primary/20 bg-gradient-to-b from-primary/5 via-background to-background'
+          }`}>
             <div className="flex items-start justify-between gap-3 mb-4">
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold leading-snug">
-                  {topTask.title}
+                  {nowTask.title}
                 </h3>
-                {(topTask.goal?.title || topTask.bottleneck?.title) && (
+                {(nowTask.goal?.title || nowTask.bottleneck?.title) && (
                   <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                    {topTask.goal?.title && <span>{topTask.goal.title}</span>}
-                    {topTask.goal?.title && topTask.bottleneck?.title && (
+                    {nowTask.goal?.title && <span>{nowTask.goal.title}</span>}
+                    {nowTask.goal?.title && nowTask.bottleneck?.title && (
                       <ArrowRight className="size-3" />
                     )}
-                    {topTask.bottleneck?.title && <span>{topTask.bottleneck.title}</span>}
+                    {nowTask.bottleneck?.title && <span>{nowTask.bottleneck.title}</span>}
                   </div>
                 )}
                 <div className="mt-3">
                   <Badge
                     variant="outline"
-                    className={`text-[11px] px-2 py-0.5 ${priorityColor(topTask.priority_option.label)}`}
+                    className={`text-[11px] px-2 py-0.5 ${priorityColor(nowTask.priority_option.label)}`}
                   >
-                    {topTask.priority_option.label}
+                    {nowTask.priority_option.label}
                   </Badge>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                size="lg"
-                onClick={() => handleStartFocus(topTask.id)}
-                className="gap-2 rounded-xl flex-1"
-              >
-                <Play className="size-4" />
-                Start Focus
-              </Button>
-              <Button
-                variant="ghost"
-                size="lg"
-                onClick={() => skipMutation.mutate(topTask.id)}
-                disabled={skipMutation.isPending}
-                className="text-muted-foreground hover:text-foreground gap-1.5 rounded-xl"
-              >
-                <SkipForward className="size-4" />
-                Skip
-              </Button>
+            {/* Timer (only when focusing) */}
+            {activeTask && (
+              <div className="flex flex-col items-center gap-5 pt-3 border-t border-border/40">
+                <div className="relative flex items-center justify-center">
+                  <svg className="size-40 -rotate-90" viewBox="0 0 192 192">
+                    <circle cx="96" cy="96" r="84" fill="none" stroke="currentColor" strokeWidth="6" className="text-muted" />
+                    <circle cx="96" cy="96" r="84" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round"
+                      strokeDasharray={2 * Math.PI * 84}
+                      strokeDashoffset={2 * Math.PI * 84 * (1 - progressPercent / 100)}
+                      className="text-primary transition-all duration-1000 ease-linear" />
+                  </svg>
+                  <div className="absolute flex flex-col items-center">
+                    <span className="text-3xl font-bold tabular-nums tracking-tight">
+                      {formatTime(pomodoroState.timeRemaining)}
+                    </span>
+                    <span className="mt-1 text-[10px] text-muted-foreground">
+                      {pomodoroState.isRunning ? 'Focusing' : 'Paused'}
+                    </span>
+                  </div>
+                </div>
+                <Progress value={progressPercent} className="h-1.5 w-full max-w-xs" />
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className={`flex items-center gap-2 ${activeTask ? 'mt-5' : ''}`}>
+              {activeTask ? (
+                <>
+                  {pomodoroState.isRunning ? (
+                    <Button variant="outline" size="sm" onClick={pausePomodoro} className="gap-1.5 rounded-xl">
+                      <Pause className="size-3.5" /> Pause
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={resumePomodoro} className="gap-1.5 rounded-xl">
+                      <Play className="size-3.5" /> Resume
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={stopPomodoro} className="gap-1.5 rounded-xl">
+                    <Square className="size-3.5" /> Stop
+                  </Button>
+                  <Button size="sm" onClick={() => completeMutation.mutate(activeTask.id)} disabled={completeMutation.isPending}
+                    className="gap-1.5 rounded-xl flex-1">
+                    <CheckCircle2 className="size-3.5" />
+                    {completeMutation.isPending ? 'Completing...' : 'Complete'}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button size="lg" onClick={() => handleStartFocus(nowTask.id)} className="gap-2 rounded-xl flex-1">
+                    <Play className="size-4" /> Start Focus
+                  </Button>
+                  <Button variant="ghost" size="lg" onClick={() => skipMutation.mutate(nowTask.id)}
+                    disabled={skipMutation.isPending}
+                    className="text-muted-foreground hover:text-foreground gap-1.5 rounded-xl">
+                    <SkipForward className="size-4" /> Skip
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* UP NEXT — Compact list of remaining tasks */}
-      {upNext.length > 0 && (
+      {/* UP NEXT — always visible, dimmed when focusing */}
+      {otherTasks.length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <span className={`text-xs font-semibold uppercase tracking-wider transition-opacity ${
+            activeTask ? 'text-muted-foreground/50' : 'text-muted-foreground'
+          }`}>
             Up next
           </span>
-          <div className="flex flex-col gap-2">
-            {upNext.map((task, i) => (
+          <div className={`flex flex-col gap-2 transition-opacity ${activeTask ? 'opacity-50' : ''}`}>
+            {otherTasks.map((task, i) => (
               <button
                 key={task.id}
                 onClick={() => handleStartFocus(task.id)}
@@ -485,26 +446,18 @@ export function FocusScreen() {
                 <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
                   {i + 2}
                 </span>
-                <span className="flex-1 min-w-0 truncate text-sm">
-                  {task.title}
-                </span>
-                <Badge
-                  variant="outline"
-                  className={`text-[10px] px-1.5 py-0 h-4 shrink-0 ${priorityColor(task.priority_option.label)}`}
-                >
+                <span className="flex-1 min-w-0 truncate text-sm">{task.title}</span>
+                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 shrink-0 ${priorityColor(task.priority_option.label)}`}>
                   {task.priority_option.label}
                 </Badge>
                 <Play className="size-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
             ))}
           </div>
-          {hasMoreTasks && (
+          {hasMore && (
             <p className="text-xs text-muted-foreground text-center pt-1">
-              +{tasks.length - 4} more in queue ·{' '}
-              <button
-                onClick={() => setActiveTab('backlog')}
-                className="text-primary hover:underline font-medium"
-              >
+              +{tasks.length - 1 - otherTasks.length} more in queue ·{' '}
+              <button onClick={() => setActiveTab('backlog')} className="text-primary hover:underline font-medium">
                 manage in Backlog
               </button>
             </p>
