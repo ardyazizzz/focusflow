@@ -396,6 +396,7 @@ export function BacklogScreen() {
                       <SelectValue placeholder="Select goal" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="">None</SelectItem>
                       {goals.map((g) => (
                         <SelectItem key={g.id} value={g.id}>
                           {g.title}
@@ -417,6 +418,7 @@ export function BacklogScreen() {
                       <SelectValue placeholder="Select bottleneck" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="">None</SelectItem>
                       {bottlenecksForGoal.map((b) => (
                         <SelectItem key={b.id} value={b.id}>
                           {b.title}
@@ -446,6 +448,7 @@ export function BacklogScreen() {
                         <SelectValue placeholder={`Select ${dimNames[dim] ?? dim}`} />
                       </SelectTrigger>
                       <SelectContent>
+                        {dim !== 'priority' && <SelectItem value="">None</SelectItem>}
                         {(dimOptions[dim] ?? []).map(
                           (opt: DimensionOption) => (
                             <SelectItem key={opt.id} value={opt.id}>
@@ -614,9 +617,6 @@ function TaskCard({
             <p className={`text-sm leading-snug flex-1 ${isCompleted ? 'text-muted-foreground line-through' : ''}`}>
               {task.title}
             </p>
-            {isCompleted && (
-              <span className="shrink-0 size-2 rounded-full bg-emerald-500 mt-1.5" title="Completed" />
-            )}
           </div>
         </div>
         <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
