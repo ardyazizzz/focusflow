@@ -586,7 +586,7 @@ function TaskCard({
   }
 
   return (
-    <div className={`group flex flex-col gap-3 rounded-lg border bg-card/30 px-4 py-3.5 transition-colors ${
+    <div tabIndex={0} className={`group focus:outline-none flex flex-col gap-3 rounded-lg border bg-card/30 px-4 py-3.5 transition-colors ${
       inQueue ? 'border-primary/20 bg-primary/[0.03]' : 'border-border/60 hover:bg-card/60'
     }`}>
       {/* Top row: queue badge, description, action buttons */}
@@ -622,7 +622,7 @@ function TaskCard({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">
           {isCompleted ? (
             <Button
               variant="ghost"
@@ -700,7 +700,7 @@ function TaskCard({
 
       {/* Hover-revealed: Impact, Clarity, Time */}
       {(task.impact_option?.label || task.clarity_option?.label || task.time_option?.label) && (
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">
           {task.impact_option?.label && (
             <span className="inline-flex items-center gap-1.5">
               <Zap className="size-3" />
