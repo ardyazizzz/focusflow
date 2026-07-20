@@ -1,4 +1,4 @@
-# FocusFlow — Architecture Guide for AI Agents
+﻿# FocusFlow — Architecture Guide for AI Agents
 
 **Disclaimer:** This document describes the codebase as-is. Read this first before making any modifications to understand how the pieces connect.
 
@@ -6,15 +6,18 @@
 
 ## Quick Start (30 seconds)
 
-Vite + React + TypeScript SPA with Supabase backend. No framework router—6 screens are tab-switched via Zustand state.
+Vite + React + TypeScript SPA with Supabase backend. No framework router — 6 screens are tab-switched via Zustand state.
 
 **Stack:**
 - Vite 8 + React 19 + TypeScript 7
-- Supabase (direct from browser, no API routes)
-- TanStack React Query 5 (data fetching)
-- Zustand 5 (UI state only: tab, pomodoro, coach messages)
-- Tailwind CSS v4 + 15 shadcn/ui components
+- Supabase (direct from browser via JS SDK, no API routes or server)
+- TanStack React Query 5 (server-state data fetching)
+- Zustand 5 (UI state only)
+- Tailwind CSS v4 + tw-animate-css + Geist font
+- 15 shadcn/ui components (button, card, dialog, select, etc.)
 - GitHub Pages deployment via GitHub Actions
+- Deployed at: `https://ardyazizzz.github.io/focusflow`
+- Brand accent color: deep teal `#2d6a6e`
 
 **To run locally:**
 ```bash
@@ -30,214 +33,196 @@ npm run dev
 ```
 src/
   main.tsx                  # React entry point
-  App.tsx                   # Root component: layout + tab routing
-  index.css                 # Tailwind v4 + CSS variables
+  App.tsx                   # Root: QueryClientProvider + layout + tab routing
+  index.css                 # Tailwind v4 + CSS variables + cursor/press styles
+
   lib/
-    supabase.ts             # Supabase client singleton (with mock fallback)
-    utils.ts                # cn() helper (clsx + tailwind-merge)
+    supabase.ts             # Supabase client (Proxy mock when unconfigured)
+    utils.ts                # cn() helper
+
   types/
     index.ts                # All TypeScript interfaces
+
   store/
-    use-app-store.ts        # Zustand store (UI-only state)
-  components/
-    screens/
-      today-screen.tsx      # Today tab: Pomodoro timer + pending tasks
-      capture-screen.tsx    # Capture tab: create task form
-      backlog-screen.tsx    # Backlog tab: search/filter/edit/delete tasks
-      foundation-screen.tsx # Foundation tab: goals → bottlenecks CRUD
-      coach-screen.tsx      # Coach tab: AI chat with context awareness
-      settings-screen.tsx   # Settings tab: pomodoro duration, dimension config
-    ui/                     # 15 used shadcn/ui components
+    use-app-store.ts        # Zustand store (UI-only: activeTab, pomodoroState, coachMessages, foundationExpandedGoal)
+
+  components/screens/
+    focus-screen.tsx        # NOW card + UP NEXT + Pomodoro timer
+    capture-screen.tsx      # Create task form with icons + None options
+    backlog-screen.tsx      # Queue management, filters, edit/delete/reopen, hover details
+    foundation-screen.tsx   # Goals → bottlenecks CRUD with collapsible cards
+    coach-screen.tsx        # AI chat with full DB context
+    settings-screen.tsx     # Pomodoro, dimensions, AI Coach config
+
+  components/ui/            # 15 used shadcn/ui components
+
 supabase/
-  schema.sql                # Full DB schema + RLS + seed data
+  schema.sql                # Full DB schema with triggers, GRANTs, RLS, seed data
+
+.github/workflows/deploy.yml
+vite.config.ts              # @ alias + /focusflow/ base path
 ```
 
 ---
 
-## Data Model (5 Tables) — lowercase snake_case
+## Data Model (5 Tables, lowercase snake_case)
 
 ```
 goals ──1:N──▶ bottlenecks ──1:N──▶ tasks
                                         │
-                                        ├──▶ execution_dimension_options (priority)
-                                        ├──▶ execution_dimension_options (impact)
-                                        ├──▶ execution_dimension_options (clarity)
-                                        └──▶ execution_dimension_options (time)
+                                        ├──▶ execution_dimension_options (priority, required)
+                                        ├──▶ execution_dimension_options (impact, optional)
+                                        ├──▶ execution_dimension_options (clarity, optional)
+                                        └──▶ execution_dimension_options (time, optional)
 
 app_settings  (key-value pairs, no relations)
 ```
 
-**Key relationships:**
-- `goals` → `bottlenecks`: cascade delete (`goal_id` FK)
-- `bottlenecks` → `tasks`: cascade delete (manual via API)
-- `tasks.*_option_id` → `execution_dimension_options`: soft reference, no cascade
+### Tasks table key columns
+| Column | Type | Notes |
+|---|---|---|
+| `title` | TEXT | Task description |
+| `goal_id` | TEXT FK → goals | **Nullable** (optional, None) |
+| `bottleneck_id` | TEXT FK → bottlenecks | **Nullable** (optional, None) |
+| `priority_option_id` | TEXT FK → execution_dimension_options | **Required** |
+| `impact_option_id` | TEXT FK | Nullable |
+| `clarity_option_id` | TEXT FK | Nullable |
+| `time_option_id` | TEXT FK | Nullable |
+| `status` | TEXT | `'pending'` or `'completed'` |
+| `queue_order` | INTEGER | Default 9999. Focus sorts by this asc. Auto-set to 9999 on complete/skip. |
+| `completed_at` | TIMESTAMPTZ | Nullable |
 
-**`app_settings`** stores flat key-value pairs: `pomodoroDuration`, `dimensionName_*`, and AI API keys (`deepseek_api_key`, `gemini_api_key`).
+### execution_dimension_options
+Seeded: priority (P1–P4), impact (Transformational–Minimal), clarity (Crystal Clear–Unknown), time (Immediate–Flexible).
+
+### app_settings
+Flat key-value: `pomodoroDuration`, `dimensionName_priority`, etc.
+
+All tables: RLS on, GRANT ALL to anon/authenticated, auto-update trigger for `updated_at`.
 
 ---
 
-## Data Flow — The Pattern
+## Critical Gotchas
 
-Every screen follows the same pattern:
-
-### Reading data
-```tsx
-import { useQuery } from '@tanstack/react-query'
-import { supabase } from '@/lib/supabase'
-
-const { data: tasks = [], isLoading } = useQuery<Task[]>({
-  queryKey: ['tasks', 'pending'],  // cache key, unique per query
-  queryFn: async () => {
-    const { data } = await supabase
-      .from('tasks')
-      .select('*, goal:goals(id, title), bottleneck:bottlenecks(id, title), ...')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-    return (data ?? []) as unknown as Task[]
-  },
-})
-```
-
-### Writing data
-```tsx
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-
-const queryClient = useQueryClient()
-
-const createMutation = useMutation({
-  mutationFn: async (data: { title: string; goal_id: string }) => {
-    const { error } = await supabase.from('goals').insert({ title: data.title, goal_id: data.goal_id })
-    if (error) throw new Error(error.message)
-  },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ['goals'] })
-    toast.success('Goal created')
-  },
-  onError: () => toast.error('Failed to create goal'),
-})
-```
-
-**Golden rule — Supabase must be called with `async/await`, not `.then()`:** React Query 5 requires proper `Promise<T>` return types. Always use `async` functions for queryFn/mutationFn. Avoid `.then()` chains.
-
-### Supabase Nested Selects
-
-The app uses Supabase's foreign key joins extensively:
+### 1. FK Ambiguity (tasks → execution_dimension_options)
+Tasks has 4 FKs to the same table. **Must use explicit FK hints:**
 ```ts
-// Task includes 6 related tables
-const TASK_SELECT = '*, goal:goals(id, title), bottleneck:bottlenecks(id, title), priority_option:execution_dimension_options(id, dimension, label, sort_order), impact_option:execution_dimension_options(id, dimension, label, sort_order), clarity_option:execution_dimension_options(id, dimension, label, sort_order), time_option:execution_dimension_options(id, dimension, label, sort_order)'
+priority_option:execution_dimension_options!tasks_priority_option_id_fkey(id, label)
+impact_option:execution_dimension_options!tasks_impact_option_id_fkey(id, label)
+clarity_option:execution_dimension_options!tasks_clarity_option_id_fkey(id, label)
+time_option:execution_dimension_options!tasks_time_option_id_fkey(id, label)
 ```
+Without `!fk_name` suffix, PostgREST returns 400.
 
-To get counts:
+### 2. Count queries
+Supabase returns `[{ count: number }]`, not `{ _count }`. Transform manually:
 ```ts
-// goals with counts
-supabase.from('goals').select('*, bottlenecks:bottlenecks(count), tasks:tasks(count)')
-// Returns: [{ ..., bottlenecks: [{ count: 5 }], tasks: [{ count: 3 }] }]
+_count: { tasks: (g.tasks as [{ count: number }] | undefined)?.[0]?.count ?? 0 }
 ```
 
-### Important: All table/column names are snake_case
+### 3. All names lowercase snake_case
+PostgREST folds unquoted identifiers. Using `Goal` or `createdAt` causes 400 errors. Always use `goals`, `created_at`, `goal_id`, etc.
 
-PostgREST (Supabase's REST API) lowercases everything. All tables (`goals`, `tasks`, `bottlenecks`, `execution_dimension_options`, `app_settings`) and columns (`created_at`, `goal_id`, `sort_order`, etc.) use snake_case. This must match in `.from()`, `.select()`, `.order()`, `.eq()`, and data object keys in `.insert()`/`.update()`.
+### 4. Supabase mock
+`supabase.ts` uses a `Proxy` mock when no credentials configured. Returns empty data for reads, errors for writes. App renders without Supabase configured.
 
----
+### 5. Coach state
+`coachMessages` is in-memory Zustand state only. Lost on tab switch or remount.
 
-## Screen-by-Screen Data Dependencies
+### 6. SelectTrigger press effect
+Shadcn Select triggers have `button:active { transform: scale(0.97) }` excluded via CSS: `[data-slot="select-trigger"]:not(:disabled):active { transform: none }`.
 
-| Screen | Reads | Writes |
-|---|---|---|---|
-| **Today** | `tasks` (pending), dimension options, settings | Complete/skip task |
-| **Capture** | `goals`, `bottlenecks`, dimension options | Create `task` |
-| **Backlog** | `tasks` (all), `goals`, `bottlenecks`, dimension options | Update/delete `task` |
-| **Foundation** | `goals` (with counts), `bottlenecks` (with counts) | Create/update/delete `goal` + `bottleneck` |
-| **Coach** | All tables (via ad-hoc fetch, NOT React Query) | Sends messages to AI API |
-| **Settings** | `execution_dimension_options`, `app_settings` | Update `app_settings`, CRUD `execution_dimension_options` |
+### 7. React Query + async functions
+Always use `async/await` for queryFn/mutationFn. `.then()` chains return `PromiseLike<T>` which React Query 5 may reject.
 
 ---
 
-## Zustand Store — UI State Only
+## Screen-by-Screen Details
 
-The store at `src/store/use-app-store.ts` holds ONLY client-side UI state:
+### Focus
+- Fetches pending tasks ordered by `queue_order` then `created_at`
+- Shows ONE "NOW" card (big) + "UP NEXT" compact list (tasks 2-4)
+- Pomodoro timer EMBEDS into the NOW card when Start Focus is clicked (no visual jump)
+- Timer controls: Pause/Resume, Stop (exits focus mode), Complete
+- On complete: `status='completed'`, `completed_at=now()`, `queue_order=9999`
+- On skip: `queue_order=9999` (moves to end of queue)
+- Celebration overlay on complete, toast + next task slides up automatically
+- Empty state: "Go to Backlog" and "Capture a task" buttons
 
-| State | Purpose |
+### Capture
+- Task Description (Textarea with Pencil icon), Goal+Bottleneck side-by-side, Priority (required)
+- All optional selects have "None" option (`value=""`)
+- Impact/Clarity/Time in "More options" collapsible
+- Goal and Bottleneck ARE optional (nullable in DB)
+
+### Backlog
+- 3 filter pills: Priority (all/P1–P4), Status (all/pending/completed), Queue (all/in queue/not in queue)
+- Task cards: queue number badge (clickable), description (no truncation), meta rows
+- Goal/Bottleneck row with Target/TriangleAlert icons
+- Priority/Deadline row with Flag/CalendarDays icons
+- Impact/Clarity/Time on HOVER via `group-focus:opacity-100` (tap-to-reveal on phone, hover on PC)
+- Edit dialog: all selects have "None", dimension keys use `impact_option_id` (not `impactOptionId`) — must use snake_case in form state keys
+- Completed: strikethrough + Reopen (RotateCcw) button. Hover-revealed action buttons.
+- Reopen sets `status='pending'`, `completed_at=null`
+- Search bar: filters by `task.title` case-insensitive
+- "manage in Backlog" link when >4 tasks shown
+
+### Foundation
+- Goals with count badges, collapsible bottlenecks, CRUD for both
+- Cascade delete: deletes tasks → bottlenecks → goal manually
+
+### Coach
+- Fetches ALL data ad-hoc (not React Query) on each message
+- Builds system prompt with goals, bottlenecks, tasks, dimensions
+- Supports DeepSeek (API: `api.deepseek.com/v1/chat/completions`) or Gemini (API: `generativelanguage.googleapis.com`)
+- API key + provider + model read from localStorage, keys prefixed `focusflow_ai_`
+- Falls back to env vars `VITE_DEEPSEEK_API_KEY`, `VITE_GEMINI_API_KEY`
+
+### Settings
+- Pomodoro duration slider (5–60 min, step 5)
+- Dimension names (customizable labels for priority/impact/clarity/time)
+- ExecutionDimensionOptions CRUD (add/edit/delete options per dimension)
+- AI Coach config: provider selector + model selector + API key input — all saved to localStorage
+
+---
+
+## Design Conventions
+
+### Colors
+- Primary: deep teal `#2d6a6e` (light mode), `#4a8a8e` (dark mode, not used yet)
+- Priority badges: P1 = rose/red, P2 = amber/yellow, others = gray
+- Completed: muted foreground + line-through
+- In-queue card: subtle teal tint `bg-primary/[0.03]` + `border-primary/20`
+
+### Icons by context
+| Context | Icon |
 |---|---|
-| `activeTab` | Which screen is shown (`today` / `capture` / `backlog` / `foundation` / `coach` / `settings`) |
-| `pomodoroState` | Timer running state, remaining seconds, active task ID |
-| `coachMessages` | In-memory chat history array (NOT persisted) |
-| `foundationExpandedGoal` | Which goal card is expanded in Foundation screen |
+| Goal | `Target` |
+| Bottleneck | `TriangleAlert` |
+| Priority | `Flag` |
+| Impact | `Zap` (hover-revealed) |
+| Clarity | `Eye` (hover-revealed) |
+| Time | `Clock` (hover-revealed) |
+| Deadline | `CalendarDays` |
+| Notes | `StickyNote` |
 
-Data (goals, tasks, bottlenecks, settings, dimensions) lives in Supabase + React Query cache.
-
----
-
-## AI Coach — Two Providers
-
-The coach supports either **DeepSeek** (recommended) or **Gemini**:
-
-```tsx
-// Priority order: DeepSeek first, then Gemini
-const deepSeekKey = setting?.data?.value || import.meta.env.VITE_DEEPSEEK_API_KEY
-const geminiKey = setting?.data?.value || import.meta.env.VITE_GEMINI_API_KEY
-
-if (deepSeekKey) {
-  // POST to api.deepseek.com/v1/chat/completions (OpenAI-compatible format)
-} else if (geminiKey) {
-  // POST to generativelanguage.googleapis.com (Gemini format)
-}
-```
-
-API keys are stored in `AppSetting` table (key=`deepseek_api_key` or `gemini_api_key`) or in environment variables. The coach builds a system prompt from ALL user data (goals, tasks, bottlenecks, dimensions) for full context awareness.
-
----
-
-## Known Gotchas
-
-### 1. Supabase without configuration
-`src/lib/supabase.ts` uses a `Proxy` mock when `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY` are empty. This lets the app render without Supabase. The mock returns empty data for all queries. Real operations (insert/update) return errors.
-
-### 2. TypeScript and Supabase
-Supabase query builder types don't match the app's interface types. The code uses `as unknown as Task[]` casts after Supabase `.select()` calls. This is intentional but fragile—if the Supabase table schema diverges from `src/types/index.ts`, data will be silently wrong.
-
-### 3. `_count` shape mismatch
-Supabase returns counts as `[{ count: number }]` not `{ _count: { ... } }`. The Foundation screen transforms this manually. New screens should follow the same pattern:
-```ts
-const { data } = await supabase.from('goals').select('*, bottlenecks:bottlenecks(count)')
-const goals = data?.map(g => ({
-  ...g,
-  _count: { bottlenecks: (g.bottlenecks as [{ count: number }])?.[0]?.count ?? 0 }
-})) ?? []
-```
-
-### 4. Cascade deletes
-Supabase tables have `ON DELETE CASCADE` for goals→bottlenecks→tasks. But the Foundation screen also manually deletes tasks before bottlenecks to be safe (defense in depth). If you add a new child table, update the delete logic.
-
-### 5. Dependency array gotcha (Coach screen)
-The Coach screen fetches ALL data via ad-hoc `fetchCoachContext()` calls, NOT through React Query. This means `coachMessages` in the Zustand store is the ONLY state tracking conversation history. If the component unmounts, chat history is lost.
-
----
-
-## Supabase Schema Setup
-
-Run `supabase/schema.sql` in the Supabase SQL Editor. It includes:
-1. Table creation (all lowercase snake_case — required by PostgREST)
-2. Auto-update triggers for `updated_at`
-3. GRANTs for Data API access
-4. RLS policies (full access for anon + authenticated)
-5. Seed data (default dimension options + settings)
-
-The app is a single-user personal tool (like Swipe.ardy). The Supabase anon key is embedded in the client and RLS allows full CRUD for anon. No auth required.
-
-**Important:** All table names and column names must be lowercase snake_case. PostgREST folds unquoted identifiers to lowercase. Using camelCase (`createdAt`, `Goal`) with quotes will cause 400 errors.
+### Buttons press effect
+Global `button:active { transform: scale(0.97) }` applies EXCEPT `[data-slot="select-trigger"]` which has `transform: none`.
 
 ---
 
 ## Deployment
 
-GitHub Actions workflow at `.github/workflows/deploy.yml`:
+`.github/workflows/deploy.yml`:
 - Triggers on push to `main`
+- Injects secrets as `.env` file
 - Builds with Vite
-- Injects Supabase/AI credentials from GitHub Secrets
-- Deploys static files to GitHub Pages
+- Deploys dist/ to GitHub Pages
 
 **Required GitHub Secrets:**
-- `SUPABASE_URL` — Supabase project URL
-- `SUPABASE_ANON_KEY` — Supabase anon/public key
+- `SUPABASE_URL` — project URL
+- `SUPABASE_ANON_KEY` — anon key
 - `DEEPSEEK_API_KEY` or `GEMINI_API_KEY` — (optional) for AI Coach
+
+**Site URL:** `https://ardyazizzz.github.io/focusflow`
+**Repo:** `https://github.com/ardyazizzz/focusflow`
