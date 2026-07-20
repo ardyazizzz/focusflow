@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ChevronDown, ChevronUp, Plus, Loader2, Link2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus, Loader2, Link2, Pencil, Target, Link, Flag, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -22,7 +22,7 @@ export function CaptureScreen() {
   const queryClient = useQueryClient()
   const setActiveTab = useAppStore((s) => s.setActiveTab)
 
-  const titleRef = useRef<HTMLInputElement>(null)
+  const titleRef = useRef<HTMLTextAreaElement>(null)
 
   const [title, setTitle] = useState('')
   const [goalId, setGoalId] = useState('')
@@ -248,57 +248,65 @@ export function CaptureScreen() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div className="grid gap-2">
           <Label htmlFor="capture-title">
-            Task Title <span className="text-destructive">*</span>
+            Task Description <span className="text-destructive">*</span>
           </Label>
-          <Input
-            id="capture-title"
-            ref={titleRef}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="What do you want to focus on?"
-            className="rounded-xl h-11"
-          />
+          <div className="relative">
+            <Pencil className="absolute left-4 top-4 size-4 text-primary/60 pointer-events-none" />
+            <Textarea
+              id="capture-title"
+              ref={titleRef}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="What do you want to focus on?"
+              rows={4}
+              className="rounded-xl pl-11 pr-4 pt-4 pb-4 resize-none"
+            />
+          </div>
         </div>
 
-        <div className="grid gap-2">
-          <Label>
-            Goal
-          </Label>
-          <Select value={goalId} onValueChange={handleGoalChange}>
-            <SelectTrigger className="w-full rounded-xl h-11">
-              <SelectValue placeholder="Select a goal" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="">None</SelectItem>
-          {goals.map((g) => (
-                <SelectItem key={g.id} value={g.id}>
-                  {g.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid gap-2">
-          <Label>
-            Bottleneck
-          </Label>
-          <Select
-            value={bottleneckId}
-            onValueChange={setBottleneckId}
-          >
-            <SelectTrigger className="w-full rounded-xl h-11">
-              <SelectValue placeholder="Select a bottleneck" />
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>Goal</Label>
+            <Select value={goalId} onValueChange={handleGoalChange}>
+              <SelectTrigger className="w-full rounded-xl h-11">
+                <div className="flex items-center gap-2.5">
+                  <Target className="size-4 text-primary/60 shrink-0" />
+                  <SelectValue placeholder="Select a goal" />
+                </div>
               </SelectTrigger>
               <SelectContent>
-                  <SelectItem value="">None</SelectItem>
-          {bottlenecksForGoal.map((b) => (
+                <SelectItem value="">None</SelectItem>
+                {goals.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>
+                    {g.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Bottleneck</Label>
+            <Select
+              value={bottleneckId}
+              onValueChange={setBottleneckId}
+            >
+              <SelectTrigger className="w-full rounded-xl h-11">
+                <div className="flex items-center gap-2.5">
+                  <Link className="size-4 text-primary/60 shrink-0" />
+                  <SelectValue placeholder="Select a bottleneck" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {bottlenecksForGoal.map((b) => (
                   <SelectItem key={b.id} value={b.id}>
                     {b.title}
                   </SelectItem>
                 ))}
               </SelectContent>
-          </Select>
+            </Select>
+          </div>
         </div>
 
         <div className="grid gap-2">
@@ -307,7 +315,10 @@ export function CaptureScreen() {
           </Label>
           <Select value={priorityOptionId} onValueChange={setPriorityOptionId}>
             <SelectTrigger className="w-full rounded-xl h-11">
-              <SelectValue placeholder={`Select ${dimLabel('priority').toLowerCase()}`} />
+              <div className="flex items-center gap-2.5">
+                <Flag className="size-4 text-primary/60 shrink-0" />
+                <SelectValue placeholder={`Select ${dimLabel('priority').toLowerCase()}`} />
+              </div>
             </SelectTrigger>
             <SelectContent>
               {priorityOptions.map((opt: DimensionOption) => (
@@ -344,8 +355,8 @@ export function CaptureScreen() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-          {impactOptions.map((opt: DimensionOption) => (
+                    <SelectItem value="">None</SelectItem>
+                    {impactOptions.map((opt: DimensionOption) => (
                       <SelectItem key={opt.id} value={opt.id}>
                         {opt.label}
                       </SelectItem>
@@ -366,8 +377,8 @@ export function CaptureScreen() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-          {clarityOptions.map((opt: DimensionOption) => (
+                    <SelectItem value="">None</SelectItem>
+                    {clarityOptions.map((opt: DimensionOption) => (
                       <SelectItem key={opt.id} value={opt.id}>
                         {opt.label}
                       </SelectItem>
@@ -385,8 +396,8 @@ export function CaptureScreen() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-          {timeOptions.map((opt: DimensionOption) => (
+                    <SelectItem value="">None</SelectItem>
+                    {timeOptions.map((opt: DimensionOption) => (
                       <SelectItem key={opt.id} value={opt.id}>
                         {opt.label}
                       </SelectItem>
