@@ -439,11 +439,11 @@ export function BacklogScreen() {
                       {dimNames[dim] ?? dim.charAt(0).toUpperCase() + dim.slice(1)}
                     </Label>
                     <Select
-                      value={editForm[`${dim}OptionId` as keyof EditFormState] as string}
+                      value={editForm[`${dim}_option_id` as keyof EditFormState] as string}
                       onValueChange={(val) =>
                         setEditForm({
                           ...editForm,
-                          [`${dim}OptionId`]: val,
+                          [`${dim}_option_id`]: val,
                         })
                       }
                     >
