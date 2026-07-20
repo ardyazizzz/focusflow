@@ -607,7 +607,7 @@ function TaskCard({
             </button>
           )}
           <span
-            className={`text-sm font-medium truncate ${isCompleted ? 'text-muted-foreground line-through' : ''}`}
+            className={`text-sm font-medium ${isCompleted ? 'text-muted-foreground line-through' : ''}`}
           >
             {task.title}
           </span>
