@@ -269,7 +269,8 @@ export function CaptureScreen() {
               <SelectValue placeholder="Select a goal" />
             </SelectTrigger>
             <SelectContent>
-              {goals.map((g) => (
+                <SelectItem value="">None</SelectItem>
+          {goals.map((g) => (
                 <SelectItem key={g.id} value={g.id}>
                   {g.title}
                 </SelectItem>
@@ -290,7 +291,8 @@ export function CaptureScreen() {
               <SelectValue placeholder="Select a bottleneck" />
               </SelectTrigger>
               <SelectContent>
-                {bottlenecksForGoal.map((b) => (
+                  <SelectItem value="">None</SelectItem>
+          {bottlenecksForGoal.map((b) => (
                   <SelectItem key={b.id} value={b.id}>
                     {b.title}
                   </SelectItem>
@@ -342,7 +344,8 @@ export function CaptureScreen() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {impactOptions.map((opt: DimensionOption) => (
+                      <SelectItem value="">None</SelectItem>
+          {impactOptions.map((opt: DimensionOption) => (
                       <SelectItem key={opt.id} value={opt.id}>
                         {opt.label}
                       </SelectItem>
@@ -363,7 +366,8 @@ export function CaptureScreen() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {clarityOptions.map((opt: DimensionOption) => (
+                      <SelectItem value="">None</SelectItem>
+          {clarityOptions.map((opt: DimensionOption) => (
                       <SelectItem key={opt.id} value={opt.id}>
                         {opt.label}
                       </SelectItem>
@@ -381,7 +385,8 @@ export function CaptureScreen() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {timeOptions.map((opt: DimensionOption) => (
+                      <SelectItem value="">None</SelectItem>
+          {timeOptions.map((opt: DimensionOption) => (
                       <SelectItem key={opt.id} value={opt.id}>
                         {opt.label}
                       </SelectItem>
