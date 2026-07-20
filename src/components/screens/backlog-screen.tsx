@@ -367,7 +367,7 @@ export function BacklogScreen() {
           {editForm && (
             <div className="grid gap-4 py-2">
               <div className="grid gap-2">
-                <Label htmlFor="edit-title">Title</Label>
+                <Label htmlFor="edit-title">Description</Label>
                 <Input
                   id="edit-title"
                   value={editForm.title}
