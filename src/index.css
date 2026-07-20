@@ -131,7 +131,7 @@
     transform: scale(0.97);
     transition: transform 0.05s ease-out;
   }
-  [data-slot="select-trigger"]:active {
+  [data-slot="select-trigger"]:not(:disabled):active {
     transform: none;
   }
 }
