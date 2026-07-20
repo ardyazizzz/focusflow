@@ -126,9 +126,4 @@
   label[for] {
     cursor: pointer;
   }
-  button:not(:disabled):active,
-  [role="button"]:not(:disabled):active {
-    transform: scale(0.97);
-    transition: transform 0.05s ease-out;
-  }
 }
