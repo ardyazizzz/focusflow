@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ChevronDown, ChevronUp, Plus, Loader2, Link2, Pencil, Target, Construction, Flag } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus, Loader2, Link2, Pencil, Target, TriangleAlert, Flag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -293,7 +293,7 @@ export function CaptureScreen() {
             >
               <SelectTrigger className="w-full rounded-xl h-11">
                 <div className="flex items-center gap-2.5">
-                  <Construction className="size-4 text-primary/60 shrink-0" />
+                  <TriangleAlert className="size-4 text-primary/60 shrink-0" />
                   <SelectValue placeholder="Select a bottleneck" />
                 </div>
               </SelectTrigger>
