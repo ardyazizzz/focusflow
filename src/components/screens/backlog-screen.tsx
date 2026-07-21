@@ -371,7 +371,7 @@ export function BacklogScreen() {
 
           {editForm && (
             <div className="grid gap-4 py-2">
-              <div className="grid gap-2">
+              <div className="grid gap-2 min-w-0">
                 <Label htmlFor="edit-title">Description</Label>
                 <Textarea
                   id="edit-title"
@@ -385,7 +385,7 @@ export function BacklogScreen() {
                 />
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-2 min-w-0">
                 <Label>Goal</Label>
                 <Select
                   value={editForm.goal_id}
@@ -411,7 +411,7 @@ export function BacklogScreen() {
                 </Select>
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-2 min-w-0">
                 <Label>Bottleneck</Label>
                 <Select
                   value={editForm.bottleneck_id}
@@ -435,7 +435,7 @@ export function BacklogScreen() {
 
               {(['priority', 'impact', 'clarity', 'time'] as const).map(
                 (dim) => (
-                  <div key={dim} className="grid gap-2">
+                  <div key={dim} className="grid gap-2 min-w-0">
                     <Label>
                       {dimNames[dim] ?? dim.charAt(0).toUpperCase() + dim.slice(1)}
                     </Label>
@@ -466,7 +466,7 @@ export function BacklogScreen() {
                 )
               )}
 
-              <div className="grid gap-2">
+              <div className="grid gap-2 min-w-0">
                 <Label htmlFor="edit-deadline">Deadline</Label>
                 <Input
                   id="edit-deadline"
@@ -478,7 +478,7 @@ export function BacklogScreen() {
                 />
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-2 min-w-0">
                 <Label htmlFor="edit-notes">Notes</Label>
                 <Textarea
                   id="edit-notes"

@@ -246,7 +246,7 @@ export function CaptureScreen() {
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div className="grid gap-2">
+        <div className="grid gap-2 min-w-0">
           <Label htmlFor="capture-title">
             Task Description <span className="text-destructive">*</span>
           </Label>
@@ -265,7 +265,7 @@ export function CaptureScreen() {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="grid gap-2">
+          <div className="grid gap-2 min-w-0">
             <Label>Goal</Label>
             <Select value={goalId} onValueChange={handleGoalChange}>
               <SelectTrigger className="w-full rounded-xl h-11">
@@ -285,7 +285,7 @@ export function CaptureScreen() {
             </Select>
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid gap-2 min-w-0">
             <Label>Bottleneck</Label>
             <Select
               value={bottleneckId}
@@ -309,7 +309,7 @@ export function CaptureScreen() {
           </div>
         </div>
 
-        <div className="grid gap-2">
+        <div className="grid gap-2 min-w-0">
           <Label>
             {dimLabel('priority')} <span className="text-destructive">*</span>
           </Label>
@@ -346,7 +346,7 @@ export function CaptureScreen() {
 
           {showMore && (
             <div className="flex flex-col gap-5 border-t border-border/40 px-4 py-4">
-              <div className="grid gap-2">
+              <div className="grid gap-2 min-w-0">
                 <Label>{dimLabel('impact')}</Label>
                 <Select value={impactOptionId} onValueChange={setImpactOptionId}>
                   <SelectTrigger className="w-full rounded-xl h-11">
@@ -365,7 +365,7 @@ export function CaptureScreen() {
                 </Select>
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-2 min-w-0">
                 <Label>{dimLabel('clarity')}</Label>
                 <Select
                   value={clarityOptionId}
@@ -387,7 +387,7 @@ export function CaptureScreen() {
                 </Select>
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-2 min-w-0">
                 <Label>{dimLabel('time')}</Label>
                 <Select value={timeOptionId} onValueChange={setTimeOptionId}>
                   <SelectTrigger className="w-full rounded-xl h-11">
@@ -406,7 +406,7 @@ export function CaptureScreen() {
                 </Select>
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-2 min-w-0">
                 <Label htmlFor="capture-deadline">Deadline</Label>
                 <Input
                   id="capture-deadline"
@@ -417,7 +417,7 @@ export function CaptureScreen() {
                 />
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-2 min-w-0">
                 <Label htmlFor="capture-notes">Notes</Label>
                 <Textarea
                   id="capture-notes"
