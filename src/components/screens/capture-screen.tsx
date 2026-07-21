@@ -109,7 +109,7 @@ export function CaptureScreen() {
       title: string
       goal_id: string | null
       bottleneck_id: string | null
-      priority_option_id: string
+      priority_option_id: string | null
       impact_option_id?: string
       clarity_option_id?: string
       time_option_id?: string
@@ -122,7 +122,7 @@ export function CaptureScreen() {
           title: data.title.trim(),
           goal_id: data.goal_id || null,
           bottleneck_id: data.bottleneck_id || null,
-          priority_option_id: data.priority_option_id,
+          priority_option_id: data.priority_option_id || null,
           impact_option_id: data.impact_option_id || null,
           clarity_option_id: data.clarity_option_id || null,
           time_option_id: data.time_option_id || null,
@@ -160,13 +160,13 @@ export function CaptureScreen() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!title.trim() || !priorityOptionId) return
+    if (!title.trim()) return
 
     createMutation.mutate({
       title: title.trim(),
       goal_id: goalId,
       bottleneck_id: bottleneckId,
-      priority_option_id: priorityOptionId,
+      priority_option_id: priorityOptionId || null,
       impact_option_id: impactOptionId || undefined,
       clarity_option_id: clarityOptionId || undefined,
       time_option_id: timeOptionId || undefined,
@@ -177,8 +177,7 @@ export function CaptureScreen() {
 
   const isSubmitting = createMutation.isPending
   const isValid =
-    title.trim() !== '' &&
-    priorityOptionId !== ''
+    title.trim() !== ''
 
   function dimLabel(key: string): string {
     return dimNames[key] ?? key.charAt(0).toUpperCase() + key.slice(1)
@@ -321,6 +320,7 @@ export function CaptureScreen() {
               </div>
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="">None</SelectItem>
               {priorityOptions.map((opt: DimensionOption) => (
                 <SelectItem key={opt.id} value={opt.id}>
                   {opt.label}

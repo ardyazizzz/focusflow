@@ -365,12 +365,14 @@ export function FocusScreen() {
                   </div>
                 )}
                 <div className="mt-3">
-                  <Badge
-                    variant="outline"
-                    className={`text-[11px] px-2 py-0.5 ${priorityColor(nowTask.priority_option.label)}`}
-                  >
-                    {nowTask.priority_option.label}
-                  </Badge>
+                  {nowTask.priority_option && (
+                    <Badge
+                      variant="outline"
+                      className={`text-[11px] px-2 py-0.5 ${priorityColor(nowTask.priority_option.label)}`}
+                    >
+                      {nowTask.priority_option.label}
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -457,9 +459,11 @@ export function FocusScreen() {
                   {i + 2}
                 </span>
                 <span className="flex-1 min-w-0 truncate text-sm">{task.title}</span>
-                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 shrink-0 ${priorityColor(task.priority_option.label)}`}>
-                  {task.priority_option.label}
-                </Badge>
+                {task.priority_option && (
+                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 shrink-0 ${priorityColor(task.priority_option.label)}`}>
+                    {task.priority_option.label}
+                  </Badge>
+                )}
                 <Play className="size-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
             ))}

@@ -194,7 +194,7 @@ export function BacklogScreen() {
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase())
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter
-    const matchesPriority = priorityFilter === 'all' || task.priority_option.label === priorityFilter
+    const matchesPriority = priorityFilter === 'all' || task.priority_option?.label === priorityFilter
     const matchesQueue = queueFilter === 'all' ||
       (queueFilter === 'in' ? task.queue_order < 9999 : task.queue_order >= 9999)
     return matchesSearch && matchesStatus && matchesPriority && matchesQueue
@@ -213,7 +213,7 @@ export function BacklogScreen() {
       title: task.title,
       goal_id: task.goal_id ?? '',
       bottleneck_id: task.bottleneck_id ?? '',
-      priority_option_id: task.priority_option_id,
+      priority_option_id: task.priority_option_id ?? '',
       impact_option_id: task.impact_option_id ?? '',
       clarity_option_id: task.clarity_option_id ?? '',
       time_option_id: task.time_option_id ?? '',
@@ -232,7 +232,7 @@ export function BacklogScreen() {
         title: editForm.title,
         goal_id: editForm.goal_id || null,
         bottleneck_id: editForm.bottleneck_id || null,
-        priority_option_id: editForm.priority_option_id,
+        priority_option_id: editForm.priority_option_id || null,
         impact_option_id: editForm.impact_option_id || null,
         clarity_option_id: editForm.clarity_option_id || null,
         time_option_id: editForm.time_option_id || null,
@@ -461,7 +461,7 @@ export function BacklogScreen() {
                         <SelectValue placeholder={`Select ${dimNames[dim] ?? dim}`} />
                       </SelectTrigger>
                       <SelectContent>
-                        {dim !== 'priority' && <SelectItem value="">None</SelectItem>}
+                        {<SelectItem value="">None</SelectItem>}
                         {(dimOptions[dim] ?? []).map(
                           (opt: DimensionOption) => (
                             <SelectItem key={opt.id} value={opt.id}>
@@ -516,8 +516,7 @@ export function BacklogScreen() {
               onClick={handleEditSubmit}
               disabled={
                 updateMutation.isPending ||
-                !editForm?.title.trim() ||
-                !editForm?.priority_option_id
+                !editForm?.title.trim()
               }
             >
               {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
@@ -702,15 +701,15 @@ function TaskCard({
       )}
 
       {/* Bottom row: priority + deadline */}
-      {(task.priority_option.label || task.deadline) && (
+      {(task.priority_option?.label || task.deadline) && (
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground">
-          {task.priority_option.label && (
+          {task.priority_option?.label && (
             <span className="inline-flex items-center gap-1.5">
               <Flag className="size-3" />
               {task.priority_option.label}
             </span>
           )}
-          {task.priority_option.label && task.deadline && (
+          {task.priority_option?.label && task.deadline && (
             <span className="text-border">·</span>
           )}
           {task.deadline && (

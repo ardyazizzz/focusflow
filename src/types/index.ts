@@ -30,7 +30,7 @@ export interface Task {
   title: string;
   goal_id: string | null;
   bottleneck_id: string | null;
-  priority_option_id: string;
+  priority_option_id: string | null;
   impact_option_id: string | null;
   clarity_option_id: string | null;
   time_option_id: string | null;
@@ -43,7 +43,7 @@ export interface Task {
   completed_at: string | null;
   goal: { id: string; title: string } | null;
   bottleneck: { id: string; title: string } | null;
-  priority_option: DimensionOption;
+  priority_option: DimensionOption | null;
   impact_option: DimensionOption | null;
   clarity_option: DimensionOption | null;
   time_option: DimensionOption | null;
