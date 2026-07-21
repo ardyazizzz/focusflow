@@ -373,12 +373,15 @@ export function BacklogScreen() {
             <div className="grid gap-4 py-2">
               <div className="grid gap-2">
                 <Label htmlFor="edit-title">Description</Label>
-                <Input
+                <Textarea
                   id="edit-title"
                   value={editForm.title}
                   onChange={(e) =>
                     setEditForm({ ...editForm, title: e.target.value })
                   }
+                  placeholder="What do you want to focus on?"
+                  rows={4}
+                  className="rounded-xl resize-none"
                 />
               </div>
 
