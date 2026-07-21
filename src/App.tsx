@@ -56,7 +56,7 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
           {screenComponents[activeTab]}
         </div>

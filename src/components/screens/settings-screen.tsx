@@ -225,7 +225,7 @@ export default function SettingsScreen() {
 
   return (
     <ScrollArea className="h-full">
-      <div className="mx-auto max-w-2xl min-w-0 space-y-6 p-4 pb-8 sm:p-6">
+      <div className="mx-auto max-w-2xl space-y-6 p-4 pb-8 sm:p-6">
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -237,7 +237,7 @@ export default function SettingsScreen() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between max-w-[280px] sm:max-w-none">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Duration</span>
               <span className="text-sm font-semibold tabular-nums">
                 {pomodoroValue} min
