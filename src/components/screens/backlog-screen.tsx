@@ -702,10 +702,10 @@ function TaskCard({
         </div>
       )}
 
-      {/* Custom label values */}
-      {labelEntries.length > 0 && (
+      {/* Top row: first 2 custom labels + deadline (always visible) */}
+      {(labelEntries.length > 0 || task.deadline) && (
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground">
-          {labelEntries.map(([labelName, vals]) => {
+          {labelEntries.slice(0, 2).map(([labelName, vals]) => {
             const labelDef = labels.find((l) => l.name === labelName)
             const IconComp = labelDef ? (CUSTOM_LABEL_ICONS[labelDef.icon] || CUSTOM_LABEL_ICONS.flag) : null
             return vals.map((val) => (
@@ -715,16 +715,31 @@ function TaskCard({
               </span>
             ))
           })}
+          {labelEntries.slice(0, 2).length > 0 && task.deadline && (
+            <span className="text-border">·</span>
+          )}
+          {task.deadline && (
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarDays className="size-3" />
+              {formatDate(task.deadline)}
+            </span>
+          )}
         </div>
       )}
 
-      {/* Deadline */}
-      {task.deadline && (
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <CalendarDays className="size-3" />
-            {formatDate(task.deadline)}
-          </span>
+      {/* Bottom row: remaining custom labels (hover-revealed) */}
+      {labelEntries.length > 2 && (
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">
+          {labelEntries.slice(2).map(([labelName, vals]) => {
+            const labelDef = labels.find((l) => l.name === labelName)
+            const IconComp = labelDef ? (CUSTOM_LABEL_ICONS[labelDef.icon] || CUSTOM_LABEL_ICONS.flag) : null
+            return vals.map((val) => (
+              <span key={`${labelName}-${val}`} className="inline-flex items-center gap-1.5">
+                {IconComp && <IconComp className="size-3 shrink-0" />}
+                {val}
+              </span>
+            ))
+          })}
         </div>
       )}
 
