@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkBreaks from 'remark-breaks'
+import { preprocessMarkdown } from '@/lib/markdown'
 import { Send, Sparkles, Trash2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -268,10 +270,10 @@ export default function CoachScreen() {
                 >
                   {msg.role === 'assistant' ? (
                     <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-strong:font-semibold">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[[remarkBreaks]]}>{preprocessMarkdown(msg.content)}</ReactMarkdown>
                     </div>
                   ) : (
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[[remarkBreaks]]}>{preprocessMarkdown(msg.content)}</ReactMarkdown>
                   )}
                 </div>
               </div>
