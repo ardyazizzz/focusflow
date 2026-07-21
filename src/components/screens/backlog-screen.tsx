@@ -580,7 +580,9 @@ function TaskCard({
   const queueNumber = inQueue ? Math.floor(task.queue_order / 100) : null
 
   const cv = normalizeCustomValues(task.custom_values)
-  const labelEntries = Object.entries(cv).filter(([, vals]) => vals.length > 0)
+  const labelEntries = Object.entries(cv)
+    .filter(([, vals]) => vals.length > 0)
+    .sort(([a], [b]) => labels.findIndex((l) => l.name === a) - labels.findIndex((l) => l.name === b))
 
   function handleQueueClick() {
     setOrderInput(queueNumber?.toString() ?? '')
