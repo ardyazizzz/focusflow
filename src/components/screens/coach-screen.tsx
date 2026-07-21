@@ -10,50 +10,40 @@ import { Separator } from '@/components/ui/separator'
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
 import type { CoachMessage } from '@/store/use-app-store'
-import type { Goal, Bottleneck, Task, DimensionOption } from '@/types'
+import type { Goal, Bottleneck, Task, CustomLabel, CustomLabelOption } from '@/types'
 
 async function fetchCoachContext() {
-  const [goalsResult, bottlenecksResult, tasksResult, optionsResult, settingsResult] =
+  const [goalsResult, bottlenecksResult, tasksResult, labelsResult] =
     await Promise.all([
       supabase.from('goals').select('*, bottlenecks:bottlenecks(count), tasks:tasks(count)').order('created_at', { ascending: false }),
       supabase.from('bottlenecks').select('*, goal:goals(id, title), tasks:tasks(count)').order('created_at', { ascending: false }),
-      supabase.from('tasks').select('*, goal:goals(id, title), bottleneck:bottlenecks(id, title), priority_option:execution_dimension_options!tasks_priority_option_id_fkey(id, dimension, label, sort_order), impact_option:execution_dimension_options!tasks_impact_option_id_fkey(id, dimension, label, sort_order), clarity_option:execution_dimension_options!tasks_clarity_option_id_fkey(id, dimension, label, sort_order), time_option:execution_dimension_options!tasks_time_option_id_fkey(id, dimension, label, sort_order)').order('created_at', { ascending: false }),
-      supabase.from('execution_dimension_options').select('*').order('dimension', { ascending: true }).order('sort_order', { ascending: true }),
-      supabase.from('app_settings').select('*'),
+      supabase.from('tasks').select('*, goal:goals(id, title), bottleneck:bottlenecks(id, title), custom_values').order('created_at', { ascending: false }),
+      supabase.from('custom_labels').select('*').order('sort_order', { ascending: true }),
     ])
 
   const goals = (goalsResult.data ?? []) as Goal[]
   const bottlenecks = (bottlenecksResult.data ?? []) as Bottleneck[]
   const tasks = (tasksResult.data ?? []) as unknown as Task[]
-  const dimensionOptions = (optionsResult.data ?? []) as DimensionOption[]
-  const allSettings = settingsResult.data ?? []
-
-  const settingsMap: Record<string, string> = {}
-  for (const s of allSettings) settingsMap[s.key] = s.value
-  const dimensionNames: Record<string, string> = {}
-  for (const [key, value] of Object.entries(settingsMap)) {
-    if (key.startsWith('dimensionName_')) {
-      dimensionNames[key.replace('dimensionName_', '')] = value
-    }
-  }
-
-  const groupedDimensions: Record<string, { label: string; sort_order: number }[]> = {}
-  for (const option of dimensionOptions) {
-    if (!groupedDimensions[option.dimension]) groupedDimensions[option.dimension] = []
-    groupedDimensions[option.dimension].push({ label: option.label, sort_order: option.sort_order })
-  }
+  const labels = (labelsResult.data ?? []) as CustomLabel[]
 
   const pendingTasks = tasks.filter((t: Task) => t.status === 'pending')
   const completedTasks = tasks.filter((t: Task) => t.status === 'completed')
 
-  return {
-    dimensionNames,
-    goals,
-    bottlenecks,
-    pendingTasks,
-    completedTasks,
-    groupedDimensions,
+  function formatCustomValues(task: Task): string {
+    const cv = task.custom_values ?? {}
+    const parts: string[] = []
+    for (const [labelName, values] of Object.entries(cv)) {
+      if (values.length > 0) {
+        parts.push(`${labelName}: ${values.join(', ')}`)
+      }
+    }
+    if (task.deadline) {
+      parts.push(`Deadline: ${new Date(task.deadline).toLocaleDateString()}`)
+    }
+    return parts.length > 0 ? ` [${parts.join(' | ')}]` : ''
   }
+
+  return { labels, goals, bottlenecks, pendingTasks, completedTasks, formatCustomValues }
 }
 
 function buildSystemPrompt(ctx: Awaited<ReturnType<typeof fetchCoachContext>>) {
@@ -64,14 +54,14 @@ ${ctx.goals.map((g) => `- **${g.title}**${g.description ? `: ${g.description}` :
 ### Bottlenecks (${ctx.bottlenecks.length} total)
 ${ctx.bottlenecks.map((b) => `- **${b.title}**${b.description ? `: ${b.description}` : ''} (Goal: ${b.goal?.title})`).join('\n') || '(No bottlenecks yet)'}
 
+### Custom Labels
+${ctx.labels.length > 0 ? ctx.labels.map((l) => `- **${l.name}**: ${(l.options ?? []).map((o) => o.value).join(', ')}`).join('\n') : '(No custom labels)'}
+
 ### Pending Tasks (${ctx.pendingTasks.length})
-${ctx.pendingTasks.map((t) => `- **${t.title}** | Goal: ${t.goal?.title ?? '—'} | Priority: ${t.priority_option?.label ?? '—'}${t.impact_option ? ` | Impact: ${t.impact_option.label}` : ''}${t.deadline ? ` | Deadline: ${new Date(t.deadline).toLocaleDateString()}` : ''}`).join('\n') || '(No pending tasks)'}
+${ctx.pendingTasks.map((t) => `- **${t.title}** | Goal: ${t.goal?.title ?? '—'}${ctx.formatCustomValues(t)}`).join('\n') || '(No pending tasks)'}
 
 ### Completed Tasks (${ctx.completedTasks.length})
 ${ctx.completedTasks.length > 0 ? ctx.completedTasks.slice(-10).map((t) => `- **${t.title}** (Goal: ${t.goal?.title ?? '—'})`).join('\n') : '(No completed tasks yet)'}
-
-### Execution Dimensions
-${Object.entries(ctx.groupedDimensions).map(([dim, opts]) => `- **${ctx.dimensionNames[dim] || dim}**: ${opts.map((o) => o.label).join(', ')}`).join('\n') || '(No dimensions configured)'}
 `.trim()
 
   return `You are FocusFlow AI Coach, a dedicated productivity coach who deeply understands the user's personal productivity system. You have full visibility into the user's goals, bottlenecks, tasks, and execution dimensions.

@@ -5,18 +5,13 @@ import {
   Search,
   Pencil,
   Trash2,
-  ChevronDown,
   CalendarDays,
   StickyNote,
   Plus,
   RotateCcw,
   CheckCircle2,
   Target,
-  Flag,
   TriangleAlert,
-  Zap,
-  Eye,
-  Clock,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
@@ -54,7 +49,8 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
-import type { Task, Goal, Bottleneck, DimensionsData, DimensionOption } from '@/types'
+import { CUSTOM_LABEL_ICONS } from '@/lib/icons'
+import type { Task, Goal, Bottleneck, CustomLabel, CustomLabelOption } from '@/types'
 
 type StatusFilter = 'all' | 'pending' | 'completed'
 
@@ -62,45 +58,35 @@ interface EditFormState {
   title: string
   goal_id: string
   bottleneck_id: string
-  priority_option_id: string
-  impact_option_id: string
-  clarity_option_id: string
-  time_option_id: string
+  custom_values: Record<string, string[]>
   deadline: string
   notes: string
 }
 
-const TASK_SELECT = '*, goal:goals(id, title), bottleneck:bottlenecks(id, title), priority_option:execution_dimension_options!tasks_priority_option_id_fkey(id, dimension, label, sort_order), impact_option:execution_dimension_options!tasks_impact_option_id_fkey(id, dimension, label, sort_order), clarity_option:execution_dimension_options!tasks_clarity_option_id_fkey(id, dimension, label, sort_order), time_option:execution_dimension_options!tasks_time_option_id_fkey(id, dimension, label, sort_order)'
+const TASK_SELECT = '*, goal:goals(id, title), bottleneck:bottlenecks(id, title), custom_values'
 
-async function fetchDimensions(): Promise<DimensionsData> {
-  const { data: options } = await supabase
-    .from('execution_dimension_options')
+async function fetchCustomLabels(): Promise<CustomLabel[]> {
+  const { data: labels } = await supabase
+    .from('custom_labels')
     .select('*')
-    .order('dimension', { ascending: true })
     .order('sort_order', { ascending: true })
 
-  const opts = (options ?? []) as { id: string; dimension: string; label: string; sort_order: number }[]
+  const { data: options } = await supabase
+    .from('custom_label_options')
+    .select('*')
+    .order('sort_order', { ascending: true })
 
-  const { data: settings } = await supabase.from('app_settings').select('*')
-  const settingsMap: Record<string, string> = {}
-  if (settings) {
-    for (const s of settings) settingsMap[s.key] = s.value
+  const opts = (options ?? []) as CustomLabelOption[]
+  const grouped: Record<string, CustomLabelOption[]> = {}
+  for (const opt of opts) {
+    if (!grouped[opt.label_id]) grouped[opt.label_id] = []
+    grouped[opt.label_id].push(opt)
   }
 
-  const dimensionNames: Record<string, string> = {}
-  for (const [key, value] of Object.entries(settingsMap)) {
-    if (key.startsWith('dimensionName_')) {
-      dimensionNames[key.replace('dimensionName_', '')] = value
-    }
-  }
-
-  const grouped: Record<string, typeof opts> = {}
-  for (const option of opts) {
-    if (!grouped[option.dimension]) grouped[option.dimension] = []
-    grouped[option.dimension].push(option)
-  }
-
-  return { dimensionNames, options: grouped }
+  return (labels ?? []).map((l: CustomLabel) => ({
+    ...l,
+    options: grouped[l.id] ?? [],
+  }))
 }
 
 export function BacklogScreen() {
@@ -109,7 +95,7 @@ export function BacklogScreen() {
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [priorityFilter, setPriorityFilter] = useState('all')
+  const [labelFilters, setLabelFilters] = useState<Record<string, string>>({})
   const [queueFilter, setQueueFilter] = useState<'all' | 'in' | 'out'>('all')
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [editForm, setEditForm] = useState<EditFormState | null>(null)
@@ -124,9 +110,9 @@ export function BacklogScreen() {
     enabled: activeTab === 'backlog',
   })
 
-  const { data: dimensions } = useQuery<DimensionsData>({
-    queryKey: ['dimensions'],
-    queryFn: fetchDimensions,
+  const { data: labels = [] } = useQuery<CustomLabel[]>({
+    queryKey: ['custom_labels'],
+    queryFn: fetchCustomLabels,
     enabled: activeTab === 'backlog',
   })
 
@@ -154,10 +140,7 @@ export function BacklogScreen() {
       if (data.title !== undefined) updateData.title = data.title
       if (data.goal_id !== undefined) updateData.goal_id = data.goal_id
       if (data.bottleneck_id !== undefined) updateData.bottleneck_id = data.bottleneck_id
-      if (data.priority_option_id !== undefined) updateData.priority_option_id = data.priority_option_id
-      if (data.impact_option_id !== undefined) updateData.impact_option_id = data.impact_option_id || null
-      if (data.clarity_option_id !== undefined) updateData.clarity_option_id = data.clarity_option_id || null
-      if (data.time_option_id !== undefined) updateData.time_option_id = data.time_option_id || null
+      if (data.custom_values !== undefined) updateData.custom_values = data.custom_values
       if (data.deadline !== undefined) updateData.deadline = data.deadline ? new Date(data.deadline).toISOString() : null
       if (data.notes !== undefined) updateData.notes = data.notes || null
       if (data.status !== undefined) updateData.status = data.status
@@ -167,6 +150,7 @@ export function BacklogScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'pending'] })
       toast.success('Task updated')
       setEditingTask(null)
       setEditForm(null)
@@ -194,18 +178,20 @@ export function BacklogScreen() {
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase())
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter
-    const matchesPriority = priorityFilter === 'all' || task.priority_option?.label === priorityFilter
     const matchesQueue = queueFilter === 'all' ||
       (queueFilter === 'in' ? task.queue_order < 9999 : task.queue_order >= 9999)
-    return matchesSearch && matchesStatus && matchesPriority && matchesQueue
+    const cv = task.custom_values ?? {}
+    const matchesLabels = Object.entries(labelFilters).every(([labelName, filterVal]) => {
+      if (filterVal === 'all') return true
+      const taskVals = cv[labelName] ?? []
+      return taskVals.includes(filterVal)
+    })
+    return matchesSearch && matchesStatus && matchesLabels && matchesQueue
   })
 
   const bottlenecksForGoal = allBottlenecks.filter(
     (b) => b.goal_id === editForm?.goal_id
   )
-
-  const dimNames = dimensions?.dimensionNames ?? {}
-  const dimOptions = dimensions?.options ?? {}
 
   function openEdit(task: Task) {
     setEditingTask(task)
@@ -213,10 +199,7 @@ export function BacklogScreen() {
       title: task.title,
       goal_id: task.goal_id ?? '',
       bottleneck_id: task.bottleneck_id ?? '',
-      priority_option_id: task.priority_option_id ?? '',
-      impact_option_id: task.impact_option_id ?? '',
-      clarity_option_id: task.clarity_option_id ?? '',
-      time_option_id: task.time_option_id ?? '',
+      custom_values: { ...(task.custom_values ?? {}) },
       deadline: task.deadline
         ? new Date(task.deadline).toISOString().split('T')[0]
         : '',
@@ -232,14 +215,33 @@ export function BacklogScreen() {
         title: editForm.title,
         goal_id: editForm.goal_id || null,
         bottleneck_id: editForm.bottleneck_id || null,
-        priority_option_id: editForm.priority_option_id || null,
-        impact_option_id: editForm.impact_option_id || null,
-        clarity_option_id: editForm.clarity_option_id || null,
-        time_option_id: editForm.time_option_id || null,
+        custom_values: editForm.custom_values,
         deadline: editForm.deadline || null,
         notes: editForm.notes || null,
       },
     })
+  }
+
+  function toggleEditOption(labelName: string, value: string) {
+    if (!editForm) return
+    const current = editForm.custom_values[labelName] ?? []
+    if (current.includes(value)) {
+      setEditForm({
+        ...editForm,
+        custom_values: {
+          ...editForm.custom_values,
+          [labelName]: current.filter((v) => v !== value),
+        },
+      })
+    } else {
+      setEditForm({
+        ...editForm,
+        custom_values: {
+          ...editForm.custom_values,
+          [labelName]: [...current, value],
+        },
+      })
+    }
   }
 
   function handleDelete() {
@@ -253,8 +255,6 @@ export function BacklogScreen() {
       day: 'numeric',
     })
   }
-
-  const priorityOptions = dimOptions['priority'] ?? []
 
   return (
     <div className="flex flex-col gap-4">
@@ -273,17 +273,36 @@ export function BacklogScreen() {
 
       {/* ── Filter pills ──────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-fit min-w-[100px] h-8 text-xs rounded-lg">
-            <SelectValue placeholder="Priority" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Priorities</SelectItem>
-            {priorityOptions.map((opt: DimensionOption) => (
-              <SelectItem key={opt.id} value={opt.label}>{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {labels.map((label) => {
+          const IconComp = CUSTOM_LABEL_ICONS[label.icon] || CUSTOM_LABEL_ICONS.flag
+          const filterVal = labelFilters[label.name] ?? 'all'
+          return (
+            <Select
+              key={label.id}
+              value={filterVal}
+              onValueChange={(v) =>
+                setLabelFilters((prev) => ({ ...prev, [label.name]: v }))
+              }
+            >
+              <SelectTrigger className="w-fit min-w-[90px] h-8 text-xs rounded-lg">
+                <SelectValue>
+                  <span className="inline-flex items-center gap-1">
+                    <IconComp className="size-3" />
+                    {filterVal === 'all' ? label.name : filterVal}
+                  </span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {label.options?.map((opt) => (
+                  <SelectItem key={opt.id} value={opt.value}>
+                    {opt.value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )
+        })}
 
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
           <SelectTrigger className="w-fit min-w-[90px] h-8 text-xs rounded-lg">
@@ -333,7 +352,7 @@ export function BacklogScreen() {
                   <TaskCard
                     key={task.id}
                     task={task}
-                    dimNames={dimNames}
+                    labels={labels}
                     onEdit={() => openEdit(task)}
                     onDelete={() => setDeletingTask(task)}
                     onReopen={async () => {
@@ -442,38 +461,42 @@ export function BacklogScreen() {
                 </Select>
               </div>
 
-              {(['priority', 'impact', 'clarity', 'time'] as const).map(
-                (dim) => (
-                  <div key={dim} className="grid gap-2 min-w-0">
-                    <Label>
-                      {dimNames[dim] ?? dim.charAt(0).toUpperCase() + dim.slice(1)}
+              {labels.map((label) => {
+                const IconComp = CUSTOM_LABEL_ICONS[label.icon] || CUSTOM_LABEL_ICONS.flag
+                const selected = editForm.custom_values[label.name] ?? []
+                return (
+                  <div key={label.id} className="grid gap-2 min-w-0">
+                    <Label className="flex items-center gap-2">
+                      <IconComp className="size-4 text-primary/60" />
+                      {label.name}
                     </Label>
-                    <Select
-                      value={editForm[`${dim}_option_id` as keyof EditFormState] as string}
-                      onValueChange={(val) =>
-                        setEditForm({
-                          ...editForm,
-                          [`${dim}_option_id`]: val,
-                        })
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder={`Select ${dimNames[dim] ?? dim}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {<SelectItem value="">None</SelectItem>}
-                        {(dimOptions[dim] ?? []).map(
-                          (opt: DimensionOption) => (
-                            <SelectItem key={opt.id} value={opt.id}>
-                              {opt.label}
-                            </SelectItem>
-                          )
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex flex-wrap gap-2">
+                      {label.options?.map((opt) => {
+                        const isSelected = selected.includes(opt.value)
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => toggleEditOption(label.name, opt.value)}
+                            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                              isSelected
+                                ? 'border-primary/50 bg-primary/5 text-primary font-medium'
+                                : 'border-border/60 bg-background text-muted-foreground hover:border-border hover:text-foreground'
+                            }`}
+                          >
+                            {isSelected && (
+                              <svg className="size-3.5" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M13.3 4.2a1 1 0 0 1 0 1.4l-6.4 6.4a1 1 0 0 1-1.4 0l-3.2-3.2a1 1 0 1 1 1.4-1.4l2.5 2.5 5.7-5.7a1 1 0 0 1 1.4 1.4z" />
+                              </svg>
+                            )}
+                            {opt.value}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 )
-              )}
+              })}
 
               <div className="grid gap-2 min-w-0">
                 <Label htmlFor="edit-deadline">Deadline</Label>
@@ -556,7 +579,7 @@ export function BacklogScreen() {
 
 function TaskCard({
   task,
-  dimNames,
+  labels,
   onEdit,
   onDelete,
   onReopen,
@@ -565,7 +588,7 @@ function TaskCard({
   onQueueChange,
 }: {
   task: Task
-  dimNames: Record<string, string>
+  labels: CustomLabel[]
   onEdit: () => void
   onDelete: () => void
   onReopen?: () => Promise<void>
@@ -580,6 +603,9 @@ function TaskCard({
   const inQueue = task.queue_order < 9999
   const queueNumber = inQueue ? Math.floor(task.queue_order / 100) : null
 
+  const cv = task.custom_values ?? {}
+  const labelEntries = Object.entries(cv).filter(([, vals]) => vals.length > 0)
+
   function handleQueueClick() {
     setOrderInput(queueNumber?.toString() ?? '')
     setEditingOrder(true)
@@ -591,7 +617,7 @@ function TaskCard({
       if (!isNaN(val) && val > 0) {
         onQueueChange(val * 100)
       } else {
-        onQueueChange(9999) // 0 or empty = remove from queue
+        onQueueChange(9999)
       }
     }
     setEditingOrder(false)
@@ -679,7 +705,7 @@ function TaskCard({
         </div>
       </div>
 
-      {/* Meta row: goal, bottleneck, priority, deadline */}
+      {/* Meta row: goal & bottleneck */}
       {(task.goal?.title || task.bottleneck?.title) && (
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground">
           {task.goal?.title && (
@@ -700,54 +726,29 @@ function TaskCard({
         </div>
       )}
 
-      {/* Bottom row: priority + deadline */}
-      {(task.priority_option?.label || task.deadline) && (
+      {/* Custom label values */}
+      {labelEntries.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground">
-          {task.priority_option?.label && (
-            <span className="inline-flex items-center gap-1.5">
-              <Flag className="size-3" />
-              {task.priority_option.label}
-            </span>
-          )}
-          {task.priority_option?.label && task.deadline && (
-            <span className="text-border">·</span>
-          )}
-          {task.deadline && (
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarDays className="size-3" />
-              {formatDate(task.deadline)}
-            </span>
-          )}
+          {labelEntries.map(([labelName, vals]) => {
+            const labelDef = labels.find((l) => l.name === labelName)
+            const IconComp = labelDef ? (CUSTOM_LABEL_ICONS[labelDef.icon] || CUSTOM_LABEL_ICONS.flag) : null
+            return vals.map((val) => (
+              <span key={`${labelName}-${val}`} className="inline-flex items-center gap-1.5">
+                {IconComp && <IconComp className="size-3 shrink-0" />}
+                {val}
+              </span>
+            ))
+          })}
         </div>
       )}
 
-      {/* Hover-revealed: Impact, Clarity, Time */}
-      {(task.impact_option?.label || task.clarity_option?.label || task.time_option?.label) && (
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">
-          {task.impact_option?.label && (
-            <span className="inline-flex items-center gap-1.5">
-              <Zap className="size-3" />
-              {task.impact_option.label}
-            </span>
-          )}
-          {task.impact_option?.label && (task.clarity_option?.label || task.time_option?.label) && (
-            <span className="text-border">·</span>
-          )}
-          {task.clarity_option?.label && (
-            <span className="inline-flex items-center gap-1.5">
-              <Eye className="size-3" />
-              {task.clarity_option.label}
-            </span>
-          )}
-          {task.clarity_option?.label && task.time_option?.label && (
-            <span className="text-border">·</span>
-          )}
-          {task.time_option?.label && (
-            <span className="inline-flex items-center gap-1.5">
-              <Clock className="size-3" />
-              {task.time_option.label}
-            </span>
-          )}
+      {/* Deadline */}
+      {task.deadline && (
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <CalendarDays className="size-3" />
+            {formatDate(task.deadline)}
+          </span>
         </div>
       )}
 

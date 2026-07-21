@@ -25,15 +25,27 @@ export interface DimensionOption {
   sort_order: number;
 }
 
+export interface CustomLabel {
+  id: string;
+  name: string;
+  icon: string;
+  sort_order: number;
+  created_at: string;
+  options?: CustomLabelOption[];
+}
+
+export interface CustomLabelOption {
+  id: string;
+  label_id: string;
+  value: string;
+  sort_order: number;
+}
+
 export interface Task {
   id: string;
   title: string;
   goal_id: string | null;
   bottleneck_id: string | null;
-  priority_option_id: string | null;
-  impact_option_id: string | null;
-  clarity_option_id: string | null;
-  time_option_id: string | null;
   deadline: string | null;
   notes: string | null;
   status: string;
@@ -41,12 +53,9 @@ export interface Task {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  custom_values: Record<string, string[]> | null;
   goal: { id: string; title: string } | null;
   bottleneck: { id: string; title: string } | null;
-  priority_option: DimensionOption | null;
-  impact_option: DimensionOption | null;
-  clarity_option: DimensionOption | null;
-  time_option: DimensionOption | null;
 }
 
 export interface DimensionsData {
@@ -54,10 +63,11 @@ export interface DimensionsData {
   options: Record<string, DimensionOption[]>;
 }
 
+export interface CustomLabelsData {
+  labels: CustomLabel[];
+  options: Record<string, CustomLabelOption[]>;
+}
+
 export interface SettingsData {
   pomodoroDuration: number;
-  dimensionName_priority: string;
-  dimensionName_impact: string;
-  dimensionName_clarity: string;
-  dimensionName_time: string;
 }

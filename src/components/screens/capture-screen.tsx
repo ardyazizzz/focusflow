@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ChevronDown, ChevronUp, Plus, Loader2, Link2, Pencil, Target, TriangleAlert, Flag } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus, Loader2, Link2, Pencil, Target, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/select'
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
-import type { Goal, Bottleneck, DimensionsData, DimensionOption } from '@/types'
+import { CUSTOM_LABEL_ICONS } from '@/lib/icons'
+import type { Goal, Bottleneck, CustomLabel, CustomLabelOption } from '@/types'
 
 export function CaptureScreen() {
   const queryClient = useQueryClient()
@@ -27,10 +28,7 @@ export function CaptureScreen() {
   const [title, setTitle] = useState('')
   const [goalId, setGoalId] = useState('')
   const [bottleneckId, setBottleneckId] = useState('')
-  const [priorityOptionId, setPriorityOptionId] = useState('')
-  const [impactOptionId, setImpactOptionId] = useState('')
-  const [clarityOptionId, setClarityOptionId] = useState('')
-  const [timeOptionId, setTimeOptionId] = useState('')
+  const [customValues, setCustomValues] = useState<Record<string, string[]>>({})
   const [deadline, setDeadline] = useState('')
   const [notes, setNotes] = useState('')
   const [showMore, setShowMore] = useState(false)
@@ -52,52 +50,52 @@ export function CaptureScreen() {
       },
     })
 
-  const { data: dimensions } = useQuery<DimensionsData>({
-    queryKey: ['dimensions'],
+  const { data: labelsData } = useQuery<{ labels: CustomLabel[] }>({
+    queryKey: ['custom_labels'],
     queryFn: async () => {
-      const { data: options } = await supabase
-        .from('execution_dimension_options')
+      const { data: labels } = await supabase
+        .from('custom_labels')
         .select('*')
-        .order('dimension', { ascending: true })
         .order('sort_order', { ascending: true })
 
-      const opts = (options ?? []) as { id: string; dimension: string; label: string; sort_order: number }[]
+      const { data: options } = await supabase
+        .from('custom_label_options')
+        .select('*')
+        .order('sort_order', { ascending: true })
 
-      const { data: settings } = await supabase.from('app_settings').select('*')
-      const settingsMap: Record<string, string> = {}
-      if (settings) {
-        for (const s of settings) settingsMap[s.key] = s.value
+      const opts = (options ?? []) as CustomLabelOption[]
+      const grouped: Record<string, CustomLabelOption[]> = {}
+      for (const opt of opts) {
+        if (!grouped[opt.label_id]) grouped[opt.label_id] = []
+        grouped[opt.label_id].push(opt)
       }
 
-      const dimensionNames: Record<string, string> = {}
-      for (const [key, value] of Object.entries(settingsMap)) {
-        if (key.startsWith('dimensionName_')) {
-          dimensionNames[key.replace('dimensionName_', '')] = value
-        }
+      return {
+        labels: (labels ?? []).map((l: CustomLabel) => ({
+          ...l,
+          options: grouped[l.id] ?? [],
+        })),
       }
-
-      const grouped: Record<string, typeof opts> = {}
-      for (const option of opts) {
-        if (!grouped[option.dimension]) grouped[option.dimension] = []
-        grouped[option.dimension].push(option)
-      }
-
-      return { dimensionNames, options: grouped }
     },
   })
 
-  const dimNames = dimensions?.dimensionNames ?? {}
-  const dimOptions = dimensions?.options ?? {}
+  const labels = labelsData?.labels ?? []
 
   const bottlenecksForGoal = allBottlenecks.filter((b) => b.goal_id === goalId)
-  const priorityOptions = dimOptions['priority'] ?? []
-  const impactOptions = dimOptions['impact'] ?? []
-  const clarityOptions = dimOptions['clarity'] ?? []
-  const timeOptions = dimOptions['time'] ?? []
 
   function handleGoalChange(val: string) {
     setGoalId(val)
     setBottleneckId('')
+  }
+
+  function toggleOption(labelName: string, optionValue: string) {
+    setCustomValues((prev) => {
+      const current = prev[labelName] ?? []
+      if (current.includes(optionValue)) {
+        return { ...prev, [labelName]: current.filter((v) => v !== optionValue) }
+      }
+      return { ...prev, [labelName]: [...current, optionValue] }
+    })
   }
 
   useEffect(() => {
@@ -109,10 +107,7 @@ export function CaptureScreen() {
       title: string
       goal_id: string | null
       bottleneck_id: string | null
-      priority_option_id: string | null
-      impact_option_id?: string
-      clarity_option_id?: string
-      time_option_id?: string
+      custom_values: Record<string, string[]>
       deadline?: string
       notes?: string
     }) => {
@@ -122,10 +117,7 @@ export function CaptureScreen() {
           title: data.title.trim(),
           goal_id: data.goal_id || null,
           bottleneck_id: data.bottleneck_id || null,
-          priority_option_id: data.priority_option_id || null,
-          impact_option_id: data.impact_option_id || null,
-          clarity_option_id: data.clarity_option_id || null,
-          time_option_id: data.time_option_id || null,
+          custom_values: data.custom_values,
           deadline: data.deadline ? new Date(data.deadline).toISOString() : null,
           notes: data.notes?.trim() || null,
         })
@@ -136,6 +128,7 @@ export function CaptureScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'pending'] })
       toast.success('Task captured!')
       resetForm()
       setActiveTab('focus')
@@ -149,10 +142,7 @@ export function CaptureScreen() {
     setTitle('')
     setGoalId('')
     setBottleneckId('')
-    setPriorityOptionId('')
-    setImpactOptionId('')
-    setClarityOptionId('')
-    setTimeOptionId('')
+    setCustomValues({})
     setDeadline('')
     setNotes('')
     setShowMore(false)
@@ -166,22 +156,14 @@ export function CaptureScreen() {
       title: title.trim(),
       goal_id: goalId,
       bottleneck_id: bottleneckId,
-      priority_option_id: priorityOptionId || null,
-      impact_option_id: impactOptionId || undefined,
-      clarity_option_id: clarityOptionId || undefined,
-      time_option_id: timeOptionId || undefined,
+      custom_values: customValues,
       deadline: deadline || undefined,
       notes: notes.trim() || undefined,
     })
   }
 
   const isSubmitting = createMutation.isPending
-  const isValid =
-    title.trim() !== ''
-
-  function dimLabel(key: string): string {
-    return dimNames[key] ?? key.charAt(0).toUpperCase() + key.slice(1)
-  }
+  const isValid = title.trim() !== ''
 
   if (goalsLoading || bottlenecksLoading) {
     return (
@@ -308,27 +290,46 @@ export function CaptureScreen() {
           </div>
         </div>
 
-        <div className="grid gap-2 min-w-0">
-          <Label>
-            {dimLabel('priority')}
-          </Label>
-          <Select value={priorityOptionId} onValueChange={setPriorityOptionId}>
-            <SelectTrigger className="w-full rounded-xl h-11">
-              <div className="flex items-center gap-2.5">
-                <Flag className="size-4 text-primary/60 shrink-0" />
-                <SelectValue placeholder={`Select ${dimLabel('priority').toLowerCase()}`} />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">None</SelectItem>
-              {priorityOptions.map((opt: DimensionOption) => (
-                <SelectItem key={opt.id} value={opt.id}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {labels.length > 0 && (
+          <div className="space-y-4">
+            {labels.map((label) => {
+              const IconComp = CUSTOM_LABEL_ICONS[label.icon] || CUSTOM_LABEL_ICONS.flag
+              const selected = customValues[label.name] ?? []
+              return (
+                <div key={label.id} className="grid gap-2 min-w-0">
+                  <Label className="flex items-center gap-2">
+                    <IconComp className="size-4 text-primary/60" />
+                    {label.name}
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {label.options?.map((opt) => {
+                      const isSelected = selected.includes(opt.value)
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => toggleOption(label.name, opt.value)}
+                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                            isSelected
+                              ? 'border-primary/50 bg-primary/5 text-primary font-medium'
+                              : 'border-border/60 bg-background text-muted-foreground hover:border-border hover:text-foreground'
+                          }`}
+                        >
+                          {isSelected && (
+                            <svg className="size-3.5" viewBox="0 0 16 16" fill="currentColor">
+                              <path d="M13.3 4.2a1 1 0 0 1 0 1.4l-6.4 6.4a1 1 0 0 1-1.4 0l-3.2-3.2a1 1 0 1 1 1.4-1.4l2.5 2.5 5.7-5.7a1 1 0 0 1 1.4 1.4z" />
+                            </svg>
+                          )}
+                          {opt.value}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         <div className="rounded-xl border border-border/60 bg-gray-50/50">
           <button
@@ -346,66 +347,6 @@ export function CaptureScreen() {
 
           {showMore && (
             <div className="flex flex-col gap-5 border-t border-border/40 px-4 py-4">
-              <div className="grid gap-2 min-w-0">
-                <Label>{dimLabel('impact')}</Label>
-                <Select value={impactOptionId} onValueChange={setImpactOptionId}>
-                  <SelectTrigger className="w-full rounded-xl h-11">
-                    <SelectValue
-                      placeholder={`Select ${dimLabel('impact').toLowerCase()}`}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {impactOptions.map((opt: DimensionOption) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2 min-w-0">
-                <Label>{dimLabel('clarity')}</Label>
-                <Select
-                  value={clarityOptionId}
-                  onValueChange={setClarityOptionId}
-                >
-                  <SelectTrigger className="w-full rounded-xl h-11">
-                    <SelectValue
-                      placeholder={`Select ${dimLabel('clarity').toLowerCase()}`}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {clarityOptions.map((opt: DimensionOption) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2 min-w-0">
-                <Label>{dimLabel('time')}</Label>
-                <Select value={timeOptionId} onValueChange={setTimeOptionId}>
-                  <SelectTrigger className="w-full rounded-xl h-11">
-                    <SelectValue
-                      placeholder={`Select ${dimLabel('time').toLowerCase()}`}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {timeOptions.map((opt: DimensionOption) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               <div className="grid gap-2 min-w-0">
                 <Label htmlFor="capture-deadline">Deadline</Label>
                 <Input

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -49,17 +49,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
-import type { SettingsData, DimensionsData, DimensionOption } from '@/types'
-
-const DIMENSION_KEYS = ['priority', 'impact', 'clarity', 'time'] as const
-type DimensionKey = (typeof DIMENSION_KEYS)[number]
-
-const DEFAULT_NAMES: Record<DimensionKey, string> = {
-  priority: 'Priority',
-  impact: 'Impact',
-  clarity: 'Clarity',
-  time: 'Time',
-}
+import { CUSTOM_LABEL_ICONS, ICON_PICKER_OPTIONS } from '@/lib/icons'
+import type { SettingsData, CustomLabel, CustomLabelOption } from '@/types'
 
 async function fetchSettings(): Promise<SettingsData> {
   const { data: settings } = await supabase.from('app_settings').select('*')
@@ -69,42 +60,33 @@ async function fetchSettings(): Promise<SettingsData> {
   }
   return {
     pomodoroDuration: Number(map.pomodoroDuration) || 25,
-    dimensionName_priority: map.dimensionName_priority || 'Priority',
-    dimensionName_impact: map.dimensionName_impact || 'Impact',
-    dimensionName_clarity: map.dimensionName_clarity || 'Clarity',
-    dimensionName_time: map.dimensionName_time || 'Time',
   }
 }
 
-async function fetchDimensions(): Promise<DimensionsData> {
-  const { data: options } = await supabase
-    .from('execution_dimension_options')
+async function fetchCustomLabels(): Promise<{ labels: CustomLabel[] }> {
+  const { data: labels } = await supabase
+    .from('custom_labels')
     .select('*')
-    .order('dimension', { ascending: true })
     .order('sort_order', { ascending: true })
 
-  const opts = (options ?? []) as { id: string; dimension: string; label: string; sort_order: number; createdAt: string; updatedAt: string }[]
+  const { data: options } = await supabase
+    .from('custom_label_options')
+    .select('*')
+    .order('sort_order', { ascending: true })
 
-  const { data: settings } = await supabase.from('app_settings').select('*')
-  const settingsMap: Record<string, string> = {}
-  if (settings) {
-    for (const s of settings) settingsMap[s.key] = s.value
+  const opts = (options ?? []) as CustomLabelOption[]
+  const grouped: Record<string, CustomLabelOption[]> = {}
+  for (const opt of opts) {
+    if (!grouped[opt.label_id]) grouped[opt.label_id] = []
+    grouped[opt.label_id].push(opt)
   }
 
-  const dimensionNames: Record<string, string> = {}
-  for (const [key, value] of Object.entries(settingsMap)) {
-    if (key.startsWith('dimensionName_')) {
-      dimensionNames[key.replace('dimensionName_', '')] = value
-    }
+  return {
+    labels: (labels ?? []).map((l: CustomLabel) => ({
+      ...l,
+      options: grouped[l.id] ?? [],
+    })),
   }
-
-  const grouped: Record<string, DimensionOption[]> = {}
-  for (const option of opts) {
-    if (!grouped[option.dimension]) grouped[option.dimension] = []
-    grouped[option.dimension].push({ id: option.id, dimension: option.dimension, label: option.label, sort_order: option.sort_order })
-  }
-
-  return { dimensionNames, options: grouped }
 }
 
 async function upsertSetting(key: string, value: string) {
@@ -126,28 +108,10 @@ export default function SettingsScreen() {
     queryFn: fetchSettings,
   })
 
-  const { data: dimensions, isLoading: dimensionsLoading } = useQuery<DimensionsData>({
-    queryKey: ['dimensions'],
-    queryFn: fetchDimensions,
+  const { data: customLabelsData, isLoading: labelsLoading } = useQuery({
+    queryKey: ['custom_labels'],
+    queryFn: fetchCustomLabels,
   })
-
-  const [nameEdits, setNameEdits] = useState<Partial<Record<DimensionKey, string>>>({})
-
-  const getName = useCallback(
-    (key: DimensionKey) =>
-      nameEdits[key] ??
-      (settings?.[`dimensionName_${key}` as keyof SettingsData] as string) ??
-      DEFAULT_NAMES[key],
-    [nameEdits, settings]
-  )
-
-  const getCurrentNames = useCallback((): Record<DimensionKey, string> => {
-    const result: Record<string, string> = {}
-    for (const key of DIMENSION_KEYS) {
-      result[key] = getName(key)
-    }
-    return result as Record<DimensionKey, string>
-  }, [getName])
 
   // ── AI Coach state (localStorage — never stored in Supabase) ──────
   const [aiProvider, setAiProvider] = useState(() => localStorage.getItem('focusflow_ai_provider') || 'deepseek')
@@ -172,26 +136,95 @@ export default function SettingsScreen() {
     toast.success('AI Coach settings saved')
   }
 
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [editingOption, setEditingOption] = useState<DimensionOption | null>(null)
-  const [editLabel, setEditLabel] = useState('')
-  const [editSortOrder, setEditSortOrder] = useState(0)
-  const [editDimension, setEditDimension] = useState<DimensionKey | null>(null)
+  // ── Custom Labels CRUD ────────────────────────────────────────────
 
-  const saveNamesMutation = useMutation({
-    mutationFn: async (names: Record<string, string>) => {
-      for (const key of DIMENSION_KEYS) {
-        await upsertSetting(`dimensionName_${key}`, names[key])
-      }
+  const [newLabelName, setNewLabelName] = useState('')
+  const [newLabelIcon, setNewLabelIcon] = useState('flag')
+
+  const [editingLabel, setEditingLabel] = useState<CustomLabel | null>(null)
+  const [editLabelName, setEditLabelName] = useState('')
+  const [editLabelIcon, setEditLabelIcon] = useState('')
+
+  const [optionDialogOpen, setOptionDialogOpen] = useState(false)
+  const [optionLabelId, setOptionLabelId] = useState<string | null>(null)
+  const [editingOption, setEditingOption] = useState<CustomLabelOption | null>(null)
+  const [optionValue, setOptionValue] = useState('')
+  const [optionSortOrder, setOptionSortOrder] = useState(0)
+
+  const createLabelMutation = useMutation({
+    mutationFn: async ({ name, icon }: { name: string; icon: string }) => {
+      const { error } = await supabase.from('custom_labels').insert({ name, icon, sort_order: Date.now() })
+      if (error) throw new Error(error.message)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings'] })
-      queryClient.invalidateQueries({ queryKey: ['dimensions'] })
-      toast.success('Dimension names saved')
+      queryClient.invalidateQueries({ queryKey: ['custom_labels'] })
+      toast.success('Label created')
+      setNewLabelName('')
     },
-    onError: () => {
-      toast.error('Failed to save dimension names')
+    onError: () => toast.error('Failed to create label'),
+  })
+
+  const updateLabelMutation = useMutation({
+    mutationFn: async ({ id, name, icon }: { id: string; name: string; icon: string }) => {
+      const { error } = await supabase.from('custom_labels').update({ name, icon }).eq('id', id)
+      if (error) throw new Error(error.message)
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['custom_labels'] })
+      toast.success('Label updated')
+      setEditingLabel(null)
+    },
+    onError: () => toast.error('Failed to update label'),
+  })
+
+  const deleteLabelMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('custom_labels').delete().eq('id', id)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['custom_labels'] })
+      toast.success('Label deleted')
+    },
+    onError: () => toast.error('Failed to delete label'),
+  })
+
+  const createOptionMutation = useMutation({
+    mutationFn: async ({ label_id, value, sort_order }: { label_id: string; value: string; sort_order: number }) => {
+      const { error } = await supabase.from('custom_label_options').insert({ label_id, value, sort_order })
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['custom_labels'] })
+      toast.success('Option added')
+      setOptionDialogOpen(false)
+    },
+    onError: () => toast.error('Failed to add option'),
+  })
+
+  const updateOptionMutation = useMutation({
+    mutationFn: async ({ id, value, sort_order }: { id: string; value: string; sort_order: number }) => {
+      const { error } = await supabase.from('custom_label_options').update({ value, sort_order }).eq('id', id)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['custom_labels'] })
+      toast.success('Option updated')
+      setOptionDialogOpen(false)
+    },
+    onError: () => toast.error('Failed to update option'),
+  })
+
+  const deleteOptionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('custom_label_options').delete().eq('id', id)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['custom_labels'] })
+      toast.success('Option deleted')
+    },
+    onError: () => toast.error('Failed to delete option'),
   })
 
   const savePomodoroMutation = useMutation({
@@ -202,52 +235,7 @@ export default function SettingsScreen() {
       queryClient.invalidateQueries({ queryKey: ['settings'] })
       toast.success('Timer duration updated')
     },
-    onError: () => {
-      toast.error('Failed to update timer duration')
-    },
-  })
-
-  const createOptionMutation = useMutation({
-    mutationFn: async ({ dimension, label, sort_order }: { dimension: string; label: string; sort_order: number }) => {
-      const { error } = await supabase.from('execution_dimension_options').insert({ dimension, label, sort_order })
-      if (error) throw new Error(error.message)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dimensions'] })
-      toast.success('Option added')
-    },
-    onError: () => {
-      toast.error('Failed to add option')
-    },
-  })
-
-  const updateOptionMutation = useMutation({
-    mutationFn: async ({ id, label, sort_order }: { id: string; label: string; sort_order: number }) => {
-      const { error } = await supabase.from('execution_dimension_options').update({ label, sort_order }).eq('id', id)
-      if (error) throw new Error(error.message)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dimensions'] })
-      toast.success('Option updated')
-      setEditDialogOpen(false)
-    },
-    onError: () => {
-      toast.error('Failed to update option')
-    },
-  })
-
-  const deleteOptionMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('execution_dimension_options').delete().eq('id', id)
-      if (error) throw new Error(error.message)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dimensions'] })
-      toast.success('Option deleted')
-    },
-    onError: () => {
-      toast.error('Failed to delete option')
-    },
+    onError: () => toast.error('Failed to update timer duration'),
   })
 
   const handlePomodoroChange = useCallback(
@@ -258,58 +246,9 @@ export default function SettingsScreen() {
     [savePomodoroMutation]
   )
 
-  const handleNameChange = useCallback(
-    (key: DimensionKey, value: string) => {
-      setNameEdits((prev) => ({ ...prev, [key]: value }))
-    },
-    []
-  )
-
-  const handleSaveNames = useCallback(() => {
-    const names = getCurrentNames()
-    saveNamesMutation.mutate(names, {
-      onSuccess: () => {
-        setNameEdits({})
-      },
-    })
-  }, [saveNamesMutation, getCurrentNames])
-
-  const openAddDialog = useCallback((dimension: DimensionKey) => {
-    setEditingOption(null)
-    setEditDimension(dimension)
-    setEditLabel('')
-    setEditSortOrder((dimensions?.options[dimension]?.length ?? 0) + 1)
-    setEditDialogOpen(true)
-  }, [dimensions])
-
-  const openEditDialog = useCallback((dimension: DimensionKey, option: DimensionOption) => {
-    setEditingOption(option)
-    setEditDimension(dimension)
-    setEditLabel(option.label)
-    setEditSortOrder(option.sort_order)
-    setEditDialogOpen(true)
-  }, [])
-
-  const handleDialogSave = useCallback(() => {
-    if (!editLabel.trim() || !editDimension) return
-    if (editingOption) {
-      updateOptionMutation.mutate({
-        id: editingOption.id,
-        label: editLabel.trim(),
-        sort_order: editSortOrder,
-      })
-    } else {
-        createOptionMutation.mutate({
-          dimension: editDimension,
-          label: editLabel.trim(),
-          sort_order: editSortOrder,
-      })
-      setEditDialogOpen(false)
-    }
-  }, [editLabel, editSortOrder, editDimension, editingOption, updateOptionMutation, createOptionMutation])
-
-  const isLoading = settingsLoading || dimensionsLoading
+  const labels = customLabelsData?.labels ?? []
   const pomodoroValue = settings?.pomodoroDuration ?? 25
+  const isLoading = settingsLoading || labelsLoading
 
   return (
     <ScrollArea className="h-full">
@@ -342,6 +281,204 @@ export default function SettingsScreen() {
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>5 min</span>
               <span>60 min</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── Custom Labels ────────────────────────────────────────── */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Custom Labels</CardTitle>
+                <CardDescription>
+                  Define labels for your tasks. Each label can have multiple options. Pick one or more per task.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {labels.length === 0 ? (
+              <p className="py-3 text-center text-sm text-muted-foreground">
+                No labels yet. Add one below.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {labels.map((label) => {
+                  const IconComp = CUSTOM_LABEL_ICONS[label.icon] || CUSTOM_LABEL_ICONS.flag
+                  return (
+                    <div key={label.id} className="rounded-lg border border-border/60 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <IconComp className="size-4 text-primary/70" />
+                          {editingLabel?.id === label.id ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editLabelName}
+                                onChange={(e) => setEditLabelName(e.target.value)}
+                                className="h-8 w-40 text-sm"
+                                autoFocus
+                              />
+                              <div className="flex gap-1">
+                                {ICON_PICKER_OPTIONS.slice(0, 8).map((ico) => {
+                                  const I = CUSTOM_LABEL_ICONS[ico]
+                                  return (
+                                    <button
+                                      key={ico}
+                                      type="button"
+                                      onClick={() => setEditLabelIcon(ico)}
+                                      className={`rounded p-1 transition-colors ${editLabelIcon === ico ? 'bg-primary/10 text-primary ring-1 ring-primary/30' : 'hover:bg-muted text-muted-foreground'}`}
+                                    >
+                                      <I className="size-3.5" />
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                              <Button size="sm" variant="default" className="h-8"
+                                onClick={() => updateLabelMutation.mutate({ id: label.id, name: editLabelName, icon: editLabelIcon })}
+                                disabled={updateLabelMutation.isPending || !editLabelName.trim()}
+                              >
+                                Save
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-8"
+                                onClick={() => setEditingLabel(null)}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <span className="text-sm font-medium">{label.name}</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-6 opacity-0 group-hover:opacity-100"
+                                onClick={() => { setEditingLabel(label); setEditLabelName(label.name); setEditLabelIcon(label.icon) }}
+                              >
+                                <Pencil className="size-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setOptionLabelId(label.id)
+                              setEditingOption(null)
+                              setOptionValue('')
+                              setOptionSortOrder((label.options?.length ?? 0) + 1)
+                              setOptionDialogOpen(true)
+                            }}
+                          >
+                            <Plus className="size-3" />
+                            Option
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="size-7 hover:text-destructive">
+                                <Trash2 className="size-3" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete &quot;{label.name}&quot;?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently remove this label and all its options.
+                                  Existing tasks with this label will keep their data but it won&apos;t be visible anymore.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteLabelMutation.mutate(label.id)}
+                                  className="bg-destructive text-white hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                      {label.options && label.options.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {label.options.sort((a, b) => a.sort_order - b.sort_order).map((opt) => (
+                            <div key={opt.id} className="group flex items-center gap-1 rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-xs">
+                              <span>{opt.value}</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-4 opacity-0 group-hover:opacity-100"
+                                onClick={() => {
+                                  setOptionLabelId(label.id)
+                                  setEditingOption(opt)
+                                  setOptionValue(opt.value)
+                                  setOptionSortOrder(opt.sort_order)
+                                  setOptionDialogOpen(true)
+                                }}
+                              >
+                                <Pencil className="size-2.5" />
+                              </Button>
+                              <button
+                                type="button"
+                                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                                onClick={() => deleteOptionMutation.mutate(opt.id)}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="border-t border-border/40 pt-4">
+              <Label className="text-sm font-medium">Add New Label</Label>
+              <div className="mt-2 flex items-center gap-2">
+                <Input
+                  value={newLabelName}
+                  onChange={(e) => setNewLabelName(e.target.value)}
+                  placeholder="Label name (e.g. Energy Level)"
+                  className="flex-1 h-9 text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newLabelName.trim() && newLabelIcon) {
+                      createLabelMutation.mutate({ name: newLabelName.trim(), icon: newLabelIcon })
+                    }
+                  }}
+                />
+                <div className="flex gap-0.5">
+                  {ICON_PICKER_OPTIONS.slice(0, 12).map((ico) => {
+                    const I = CUSTOM_LABEL_ICONS[ico]
+                    return (
+                      <button
+                        key={ico}
+                        type="button"
+                        onClick={() => setNewLabelIcon(ico)}
+                        className={`rounded p-1.5 transition-colors ${newLabelIcon === ico ? 'bg-primary/10 text-primary ring-1 ring-primary/30' : 'hover:bg-muted text-muted-foreground'}`}
+                        title={ico}
+                      >
+                        <I className="size-3.5" />
+                      </button>
+                    )
+                  })}
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => createLabelMutation.mutate({ name: newLabelName.trim(), icon: newLabelIcon })}
+                  disabled={!newLabelName.trim() || createLabelMutation.isPending}
+                  className="h-9 shrink-0"
+                >
+                  <Plus className="size-3.5" />
+                  Add
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -409,136 +546,6 @@ export default function SettingsScreen() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Execution Dimension Names
-            </CardTitle>
-            <CardDescription>
-              Rename the four dimensions used to evaluate tasks
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {DIMENSION_KEYS.map((key) => (
-              <div key={key} className="space-y-1.5">
-                <Label htmlFor={`dim-name-${key}`} className="text-sm">
-                  {DEFAULT_NAMES[key]}
-                </Label>
-                <Input
-                  id={`dim-name-${key}`}
-                  value={getName(key)}
-                  onChange={(e) => handleNameChange(key, e.target.value)}
-                  placeholder={DEFAULT_NAMES[key]}
-                />
-              </div>
-            ))}
-            <div className="pt-2">
-              <Button
-                onClick={handleSaveNames}
-                disabled={saveNamesMutation.isPending}
-                size="sm"
-              >
-                {saveNamesMutation.isPending && (
-                  <Loader2 className="size-3.5 animate-spin" />
-                )}
-                Save All
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {DIMENSION_KEYS.map((dimKey) => {
-          const name = dimensions?.dimensionNames[dimKey] ?? DEFAULT_NAMES[dimKey]
-          const options = dimensions?.options[dimKey] ?? []
-
-          return (
-            <Card key={dimKey}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{name} Options</CardTitle>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openAddDialog(dimKey)}
-                    disabled={createOptionMutation.isPending}
-                  >
-                    <Plus className="size-3.5" />
-                    Add
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {options.length === 0 ? (
-                  <p className="py-3 text-center text-sm text-muted-foreground">
-                    No options yet. Add one to get started.
-                  </p>
-                ) : (
-                  <div className="space-y-1">
-                    {options
-                      .sort((a, b) => a.sort_order - b.sort_order)
-                      .map((option) => (
-                        <div
-                          key={option.id}
-                          className="group flex items-center gap-2 rounded-md px-2 py-2 transition-colors hover:bg-muted/50"
-                        >
-                          <GripVertical className="size-3.5 shrink-0 text-muted-foreground/50" />
-                          <span className="flex-1 text-sm">{option.label}</span>
-                          <span className="text-xs text-muted-foreground">
-                            #{option.sort_order}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-7 opacity-0 transition-opacity group-hover:opacity-100"
-                            onClick={() => openEditDialog(dimKey, option)}
-                          >
-                            <Pencil className="size-3" />
-                            <span className="sr-only">Edit</span>
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-7 opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-                              >
-                                <Trash2 className="size-3" />
-                                <span className="sr-only">Delete</span>
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Delete &quot;{option.label}&quot;?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will permanently remove this option.
-                                  Existing tasks using this option may be
-                                  affected.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() =>
-                                    deleteOptionMutation.mutate(option.id)
-                                  }
-                                  className="bg-destructive text-white hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )
-        })}
-
         {isLoading && (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
@@ -546,7 +553,7 @@ export default function SettingsScreen() {
         )}
       </div>
 
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+      <Dialog open={optionDialogOpen} onOpenChange={setOptionDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -554,20 +561,27 @@ export default function SettingsScreen() {
             </DialogTitle>
             <DialogDescription>
               {editingOption
-                ? `Updating option for ${editDimension}.`
-                : `Adding a new option for ${editDimension}.`}
+                ? 'Update the option value and sort order.'
+                : 'Add a new option value for this label.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label htmlFor="opt-label">Label</Label>
+              <Label htmlFor="opt-value">Value</Label>
               <Input
-                id="opt-label"
-                value={editLabel}
-                onChange={(e) => setEditLabel(e.target.value)}
+                id="opt-value"
+                value={optionValue}
+                onChange={(e) => setOptionValue(e.target.value)}
                 placeholder="e.g. High, Medium, Low"
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleDialogSave()
+                  if (e.key === 'Enter') {
+                    if (!optionValue.trim()) return
+                    if (editingOption) {
+                      updateOptionMutation.mutate({ id: editingOption.id, value: optionValue.trim(), sort_order: optionSortOrder })
+                    } else if (optionLabelId) {
+                      createOptionMutation.mutate({ label_id: optionLabelId, value: optionValue.trim(), sort_order: optionSortOrder })
+                    }
+                  }
                 }}
               />
             </div>
@@ -577,19 +591,26 @@ export default function SettingsScreen() {
                 id="opt-sort"
                 type="number"
                 min={0}
-                value={editSortOrder}
-                onChange={(e) => setEditSortOrder(Number(e.target.value))}
+                value={optionSortOrder}
+                onChange={(e) => setOptionSortOrder(Number(e.target.value))}
                 placeholder="1"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setOptionDialogOpen(false)}>
               Cancel
             </Button>
             <Button
-              onClick={handleDialogSave}
-              disabled={!editLabel.trim() || updateOptionMutation.isPending || createOptionMutation.isPending}
+              onClick={() => {
+                if (!optionValue.trim()) return
+                if (editingOption) {
+                  updateOptionMutation.mutate({ id: editingOption.id, value: optionValue.trim(), sort_order: optionSortOrder })
+                } else if (optionLabelId) {
+                  createOptionMutation.mutate({ label_id: optionLabelId, value: optionValue.trim(), sort_order: optionSortOrder })
+                }
+              }}
+              disabled={!optionValue.trim() || updateOptionMutation.isPending || createOptionMutation.isPending}
             >
               {(updateOptionMutation.isPending || createOptionMutation.isPending) && (
                 <Loader2 className="size-3.5 animate-spin" />
