@@ -530,7 +530,8 @@ export function BacklogScreen() {
         open={!!deletingTask}
         onOpenChange={(open) => !open && setDeletingTask(null)}
       >
-        <AlertDialogContent>
+        {/* @ts-expect-error AlertDialogContent inherits Dialog's onInteractOutside and onEscapeKeyDown */}
+        <AlertDialogContent onInteractOutside={(e: Event) => e.preventDefault()} onEscapeKeyDown={(e: KeyboardEvent) => e.preventDefault()}>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Task</AlertDialogTitle>
             <AlertDialogDescription>
