@@ -49,7 +49,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
-import { CUSTOM_LABEL_ICONS } from '@/lib/icons'
+import { CUSTOM_LABEL_ICONS, normalizeCustomValues } from '@/lib/icons'
 import type { Task, Goal, Bottleneck, CustomLabel, CustomLabelOption } from '@/types'
 
 type StatusFilter = 'all' | 'pending' | 'completed'
@@ -180,7 +180,7 @@ export function BacklogScreen() {
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter
     const matchesQueue = queueFilter === 'all' ||
       (queueFilter === 'in' ? task.queue_order < 9999 : task.queue_order >= 9999)
-    const cv = task.custom_values ?? {}
+    const cv = normalizeCustomValues(task.custom_values)
     const matchesLabels = Object.entries(labelFilters).every(([labelName, filterVal]) => {
       if (filterVal === 'all') return true
       const taskVals = cv[labelName] ?? []
@@ -199,7 +199,7 @@ export function BacklogScreen() {
       title: task.title,
       goal_id: task.goal_id ?? '',
       bottleneck_id: task.bottleneck_id ?? '',
-      custom_values: { ...(task.custom_values ?? {}) },
+      custom_values: normalizeCustomValues(task.custom_values),
       deadline: task.deadline
         ? new Date(task.deadline).toISOString().split('T')[0]
         : '',
@@ -603,7 +603,7 @@ function TaskCard({
   const inQueue = task.queue_order < 9999
   const queueNumber = inQueue ? Math.floor(task.queue_order / 100) : null
 
-  const cv = task.custom_values ?? {}
+  const cv = normalizeCustomValues(task.custom_values)
   const labelEntries = Object.entries(cv).filter(([, vals]) => vals.length > 0)
 
   function handleQueueClick() {

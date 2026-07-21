@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
+import { normalizeCustomValues } from '@/lib/icons'
 import type { CoachMessage } from '@/store/use-app-store'
 import type { Goal, Bottleneck, Task, CustomLabel, CustomLabelOption } from '@/types'
 
@@ -30,7 +31,7 @@ async function fetchCoachContext() {
   const completedTasks = tasks.filter((t: Task) => t.status === 'completed')
 
   function formatCustomValues(task: Task): string {
-    const cv = task.custom_values ?? {}
+    const cv = normalizeCustomValues(task.custom_values)
     const parts: string[] = []
     for (const [labelName, values] of Object.entries(cv)) {
       if (values.length > 0) {

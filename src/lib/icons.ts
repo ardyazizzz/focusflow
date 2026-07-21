@@ -40,3 +40,18 @@ export const CUSTOM_LABEL_ICONS: Record<string, LucideIcon> = {
 }
 
 export const ICON_PICKER_OPTIONS = Object.keys(CUSTOM_LABEL_ICONS)
+
+export function normalizeCustomValues(
+  cv: Record<string, unknown> | null | undefined
+): Record<string, string[]> {
+  if (!cv) return {}
+  const result: Record<string, string[]> = {}
+  for (const [key, value] of Object.entries(cv)) {
+    if (Array.isArray(value)) {
+      result[key] = value.filter((v): v is string => typeof v === 'string')
+    } else if (typeof value === 'string') {
+      result[key] = [value]
+    }
+  }
+  return result
+}
