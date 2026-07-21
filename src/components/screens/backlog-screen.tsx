@@ -10,6 +10,7 @@ import {
   StickyNote,
   Plus,
   RotateCcw,
+  CheckCircle2,
   Target,
   Flag,
   TriangleAlert,
@@ -339,6 +340,11 @@ export function BacklogScreen() {
                       await supabase.from('tasks').update({ status: 'pending', completed_at: null }).eq('id', task.id)
                       queryClient.invalidateQueries({ queryKey: ['tasks'] })
                     }}
+                    onComplete={async () => {
+                      await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString(), queue_order: 9999 }).eq('id', task.id)
+                      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+                      toast.success('Task completed')
+                    }}
                     formatDate={formatDate}
                     onQueueChange={async (newOrder) => {
                       queryClient.setQueryData(['tasks'], (old: Task[] | undefined) =>
@@ -554,6 +560,7 @@ function TaskCard({
   onEdit,
   onDelete,
   onReopen,
+  onComplete,
   formatDate,
   onQueueChange,
 }: {
@@ -562,6 +569,7 @@ function TaskCard({
   onEdit: () => void
   onDelete: () => void
   onReopen?: () => Promise<void>
+  onComplete?: () => Promise<void>
   formatDate: (d: string) => string
   onQueueChange?: (order: number) => void
 }) {
@@ -638,15 +646,26 @@ function TaskCard({
               <span className="sr-only">Reopen</span>
             </Button>
           ) : (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7 text-muted-foreground hover:text-foreground"
-              onClick={onEdit}
-            >
-              <Pencil className="size-3.5" />
-              <span className="sr-only">Edit</span>
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                onClick={onComplete}
+              >
+                <CheckCircle2 className="size-3.5" />
+                <span className="sr-only">Complete</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 text-muted-foreground hover:text-foreground"
+                onClick={onEdit}
+              >
+                <Pencil className="size-3.5" />
+                <span className="sr-only">Edit</span>
+              </Button>
+            </>
           )}
           <Button
             variant="ghost"
