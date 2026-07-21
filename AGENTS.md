@@ -56,6 +56,12 @@ src/
 
   components/ui/            # 15 used shadcn/ui components
 
+  lib/
+    markdown.ts             # Preprocesses user text into valid markdown (auto-detect bullet lists)
+
+public/
+  favicon.svg               # Sun icon from Remixicon, served as SVG favicon
+
 supabase/
   schema.sql                # Full DB schema with triggers, GRANTs, RLS, seed data
 
@@ -135,6 +141,16 @@ Shadcn Select triggers have `button:active { transform: scale(0.97) }` excluded 
 ### 7. React Query + async functions
 Always use `async/await` for queryFn/mutationFn. `.then()` chains return `PromiseLike<T>` which React Query 5 may reject.
 
+### 8. Dialog close behavior
+The **Edit Task** dialog (`backlog-screen.tsx`) has `onInteractOutside` and `onEscapeKeyDown` with `preventDefault()` to prevent accidental close. It only closes via the X button, Cancel button, or Save Changes. Other dialogs (Delete confirmation, etc.) have standard behavior (close on outside click/Escape).
+
+### 9. Markdown preprocessor
+`src/lib/markdown.ts` exports `preprocessMarkdown(text)` which converts user-friendly formatting to valid markdown before rendering:
+- Lines starting with `-` are normalized to `- ` (adds space after dash)
+- A blank line is inserted before the first list item so markdown parsers recognize it as a list
+- Does NOT handle `*` (star) as bullet to avoid conflicting with `**bold**`
+- Used in backlog-screen.tsx, focus-screen.tsx, and coach-screen.tsx wherever `ReactMarkdown` renders user text
+
 ---
 
 ## Screen-by-Screen Details
@@ -161,9 +177,12 @@ Always use `async/await` for queryFn/mutationFn. `.then()` chains return `Promis
 - Goal/Bottleneck row with Target/TriangleAlert icons
 - Priority/Deadline row with Flag/CalendarDays icons
 - Impact/Clarity/Time on HOVER via `group-focus:opacity-100` (tap-to-reveal on phone, hover on PC)
-- Edit dialog: all selects have "None", dimension keys use `impact_option_id` (not `impactOptionId`) — must use snake_case in form state keys
-- Completed: strikethrough + Reopen (RotateCcw) button. Hover-revealed action buttons.
+- Edit dialog: Goal and Bottleneck stacked vertically (not side-by-side), Description is a Textarea with `rows={4}`, all selects have "None", dimension keys use `impact_option_id` (not `impactOptionId`) — must use snake_case in form state keys
+- Edit dialog does NOT close on outside click or Escape — only via X button, Cancel, or Save Changes. Implemented via `onInteractOutside={(e) => e.preventDefault()}` and `onEscapeKeyDown={(e) => e.preventDefault()}` on `<DialogContent>`
+- Pending tasks have 3 hover-revealed action buttons: Complete (CheckCircle2, green), Edit (Pencil), Delete (Trash2)
+- Completed: strikethrough + Reopen (RotateCcw) button instead of Complete+Edit. Hover-revealed action buttons.
 - Reopen sets `status='pending'`, `completed_at=null`
+- Complete sets `status='completed'`, `completed_at=now()`, `queue_order=9999`
 - Search bar: filters by `task.title` case-insensitive
 - "manage in Backlog" link when >4 tasks shown
 
@@ -209,7 +228,28 @@ Always use `async/await` for queryFn/mutationFn. `.then()` chains return `Promis
 ### Buttons press effect
 Global `button:active { transform: scale(0.97) }` applies EXCEPT `[data-slot="select-trigger"]` which has `transform: none`.
 
+### Markdown everywhere
+All rendered text (task titles, notes, coach messages) supports markdown via `ReactMarkdown` with `remark-breaks` plugin:
+- `**bold**` and `*italic*` — renders as `<strong>` and `<em>`
+- `\n` (Enter) — renders as `<br>` line break
+- `- item` or `-item` — renders as bullet list (`<ul><li>`). Auto-detected by `preprocessMarkdown()` which adds a blank line before the first item and normalizes `-` to `- `
+- `line-clamp-2` on notes — limits preview to 2 lines in backlog cards
+- `list-disc list-inside` styling applied via Tailwind arbitrary variants to make bullet markers visible (Tailwind preflight removes default list styles)
+
+### SelectTrigger width behavior
+The `SelectTrigger` component in `select.tsx` has `min-w-0 overflow-hidden` in its base className:
+- Without explicit `w-full` or `w-fit`, defaults to content-width (standard button behavior)
+- With `w-full` passed via className, actually becomes full-width (the previous `w-fit` in base was silently winning due to CSS order)
+- `overflow-hidden` clips content when field width is constrained
+- The `SelectValue` has `min-w-0 break-all truncate` to allow shrinking and proper ellipsis truncation
+- This fixes an issue where long option text in selects (e.g. bottleneck names) would expand the dialog beyond its intended width
+
 ---
+
+## Favicon
+- Located at `public/favicon.svg` — a sun icon from Remixicon
+- Referenced in `index.html` as `<link rel="icon" type="image/svg+xml" href="/focusflow/favicon.svg" />`
+- Served locally (not via CDN) so it works offline
 
 ## Deployment
 
