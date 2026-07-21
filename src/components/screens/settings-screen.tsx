@@ -21,7 +21,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Dialog,
   DialogContent,
@@ -224,8 +223,8 @@ export default function SettingsScreen() {
   const isLoading = settingsLoading || labelsLoading
 
   return (
-    <ScrollArea className="h-full">
-      <div className="mx-auto max-w-2xl space-y-6 p-4 pb-8 sm:p-6">
+    <>
+    <div className="mx-auto max-w-2xl space-y-6 p-4 pb-8 sm:p-6">
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -590,9 +589,9 @@ export default function SettingsScreen() {
               )}
               {editingOption ? 'Save Changes' : 'Add Option'}
             </Button>
-          </DialogFooter>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
-    </ScrollArea>
+    </>
   )
 }
