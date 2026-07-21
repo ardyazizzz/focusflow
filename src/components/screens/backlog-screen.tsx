@@ -385,54 +385,52 @@ export function BacklogScreen() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-2">
-                  <Label>Goal</Label>
-                  <Select
-                    value={editForm.goal_id}
-                    onValueChange={(val) =>
-                      setEditForm({
-                        ...editForm,
-                        goal_id: val,
-                        bottleneck_id: '',
-                      })
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select goal" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      {goals.map((g) => (
-                        <SelectItem key={g.id} value={g.id}>
-                          {g.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="grid gap-2">
+                <Label>Goal</Label>
+                <Select
+                  value={editForm.goal_id}
+                  onValueChange={(val) =>
+                    setEditForm({
+                      ...editForm,
+                      goal_id: val,
+                      bottleneck_id: '',
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select goal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {goals.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                <div className="grid gap-2">
-                  <Label>Bottleneck</Label>
-                  <Select
-                    value={editForm.bottleneck_id}
-                    onValueChange={(val) =>
-                      setEditForm({ ...editForm, bottleneck_id: val })
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select bottleneck" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      {bottlenecksForGoal.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="grid gap-2">
+                <Label>Bottleneck</Label>
+                <Select
+                  value={editForm.bottleneck_id}
+                  onValueChange={(val) =>
+                    setEditForm({ ...editForm, bottleneck_id: val })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select bottleneck" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {bottlenecksForGoal.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {(['priority', 'impact', 'clarity', 'time'] as const).map(
