@@ -237,22 +237,20 @@ export default function SettingsScreen() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between max-w-[280px] sm:max-w-none">
               <span className="text-sm text-muted-foreground">Duration</span>
               <span className="text-sm font-semibold tabular-nums">
                 {pomodoroValue} min
               </span>
             </div>
-            <div className="max-w-xs">
-              <Slider
-                value={[pomodoroValue]}
-                onValueChange={handlePomodoroChange}
-                min={5}
-                max={60}
-                step={5}
-                disabled={savePomodoroMutation.isPending}
-              />
-            </div>
+            <Slider
+              value={[pomodoroValue]}
+              onValueChange={handlePomodoroChange}
+              min={5}
+              max={60}
+              step={5}
+              disabled={savePomodoroMutation.isPending}
+            />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>5 min</span>
               <span>60 min</span>
