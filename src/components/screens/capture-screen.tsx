@@ -16,8 +16,8 @@ import {
 } from '@/components/ui/select'
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
-import { CUSTOM_LABEL_ICONS } from '@/lib/icons'
-import type { Goal, Bottleneck, CustomLabel, CustomLabelOption } from '@/types'
+import { CUSTOM_LABEL_ICONS, fetchCustomLabels } from '@/lib/icons'
+import type { Goal, Bottleneck, CustomLabel } from '@/types'
 
 export function CaptureScreen() {
   const queryClient = useQueryClient()
@@ -50,36 +50,12 @@ export function CaptureScreen() {
       },
     })
 
-  const { data: labelsData } = useQuery<{ labels: CustomLabel[] }>({
+  const { data: labelsData } = useQuery<CustomLabel[]>({
     queryKey: ['custom_labels'],
-    queryFn: async () => {
-      const { data: labels } = await supabase
-        .from('custom_labels')
-        .select('*')
-        .order('sort_order', { ascending: true })
-
-      const { data: options } = await supabase
-        .from('custom_label_options')
-        .select('*')
-        .order('sort_order', { ascending: true })
-
-      const opts = (options ?? []) as CustomLabelOption[]
-      const grouped: Record<string, CustomLabelOption[]> = {}
-      for (const opt of opts) {
-        if (!grouped[opt.label_id]) grouped[opt.label_id] = []
-        grouped[opt.label_id].push(opt)
-      }
-
-      return {
-        labels: (labels ?? []).map((l: CustomLabel) => ({
-          ...l,
-          options: grouped[l.id] ?? [],
-        })),
-      }
-    },
+    queryFn: fetchCustomLabels,
   })
 
-  const labels = labelsData?.labels ?? []
+  const labels = labelsData ?? []
 
   const bottlenecksForGoal = allBottlenecks.filter((b) => b.goal_id === goalId)
 

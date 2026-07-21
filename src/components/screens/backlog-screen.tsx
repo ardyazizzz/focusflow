@@ -49,7 +49,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
-import { CUSTOM_LABEL_ICONS, normalizeCustomValues } from '@/lib/icons'
+import { CUSTOM_LABEL_ICONS, fetchCustomLabels, normalizeCustomValues } from '@/lib/icons'
 import type { Task, Goal, Bottleneck, CustomLabel, CustomLabelOption } from '@/types'
 
 type StatusFilter = 'all' | 'pending' | 'completed'
@@ -64,30 +64,6 @@ interface EditFormState {
 }
 
 const TASK_SELECT = '*, goal:goals(id, title), bottleneck:bottlenecks(id, title), custom_values'
-
-async function fetchCustomLabels(): Promise<CustomLabel[]> {
-  const { data: labels } = await supabase
-    .from('custom_labels')
-    .select('*')
-    .order('sort_order', { ascending: true })
-
-  const { data: options } = await supabase
-    .from('custom_label_options')
-    .select('*')
-    .order('sort_order', { ascending: true })
-
-  const opts = (options ?? []) as CustomLabelOption[]
-  const grouped: Record<string, CustomLabelOption[]> = {}
-  for (const opt of opts) {
-    if (!grouped[opt.label_id]) grouped[opt.label_id] = []
-    grouped[opt.label_id].push(opt)
-  }
-
-  return (labels ?? []).map((l: CustomLabel) => ({
-    ...l,
-    options: grouped[l.id] ?? [],
-  }))
-}
 
 export function BacklogScreen() {
   const queryClient = useQueryClient()

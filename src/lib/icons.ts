@@ -5,6 +5,8 @@ import {
   Music, Brush, Target, TriangleAlert, Sparkles, Compass, Gem,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { supabase } from './supabase'
+import type { CustomLabel, CustomLabelOption } from '@/types'
 
 export const CUSTOM_LABEL_ICONS: Record<string, LucideIcon> = {
   flag: Flag,
@@ -40,6 +42,30 @@ export const CUSTOM_LABEL_ICONS: Record<string, LucideIcon> = {
 }
 
 export const ICON_PICKER_OPTIONS = Object.keys(CUSTOM_LABEL_ICONS)
+
+export async function fetchCustomLabels(): Promise<CustomLabel[]> {
+  const { data: labels } = await supabase
+    .from('custom_labels')
+    .select('*')
+    .order('sort_order', { ascending: true })
+
+  const { data: options } = await supabase
+    .from('custom_label_options')
+    .select('*')
+    .order('sort_order', { ascending: true })
+
+  const opts = (options ?? []) as CustomLabelOption[]
+  const grouped: Record<string, CustomLabelOption[]> = {}
+  for (const opt of opts) {
+    if (!grouped[opt.label_id]) grouped[opt.label_id] = []
+    grouped[opt.label_id].push(opt)
+  }
+
+  return (labels ?? []).map((l: CustomLabel) => ({
+    ...l,
+    options: grouped[l.id] ?? [],
+  }))
+}
 
 export function normalizeCustomValues(
   cv: Record<string, unknown> | null | undefined

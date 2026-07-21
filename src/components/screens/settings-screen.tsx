@@ -49,7 +49,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
-import { CUSTOM_LABEL_ICONS, ICON_PICKER_OPTIONS } from '@/lib/icons'
+import { CUSTOM_LABEL_ICONS, ICON_PICKER_OPTIONS, fetchCustomLabels } from '@/lib/icons'
 import type { SettingsData, CustomLabel, CustomLabelOption } from '@/types'
 
 async function fetchSettings(): Promise<SettingsData> {
@@ -60,32 +60,6 @@ async function fetchSettings(): Promise<SettingsData> {
   }
   return {
     pomodoroDuration: Number(map.pomodoroDuration) || 25,
-  }
-}
-
-async function fetchCustomLabels(): Promise<{ labels: CustomLabel[] }> {
-  const { data: labels } = await supabase
-    .from('custom_labels')
-    .select('*')
-    .order('sort_order', { ascending: true })
-
-  const { data: options } = await supabase
-    .from('custom_label_options')
-    .select('*')
-    .order('sort_order', { ascending: true })
-
-  const opts = (options ?? []) as CustomLabelOption[]
-  const grouped: Record<string, CustomLabelOption[]> = {}
-  for (const opt of opts) {
-    if (!grouped[opt.label_id]) grouped[opt.label_id] = []
-    grouped[opt.label_id].push(opt)
-  }
-
-  return {
-    labels: (labels ?? []).map((l: CustomLabel) => ({
-      ...l,
-      options: grouped[l.id] ?? [],
-    })),
   }
 }
 
@@ -108,7 +82,7 @@ export default function SettingsScreen() {
     queryFn: fetchSettings,
   })
 
-  const { data: customLabelsData, isLoading: labelsLoading } = useQuery({
+  const { data: labels = [], isLoading: labelsLoading } = useQuery<CustomLabel[]>({
     queryKey: ['custom_labels'],
     queryFn: fetchCustomLabels,
   })
@@ -246,7 +220,6 @@ export default function SettingsScreen() {
     [savePomodoroMutation]
   )
 
-  const labels = customLabelsData?.labels ?? []
   const pomodoroValue = settings?.pomodoroDuration ?? 25
   const isLoading = settingsLoading || labelsLoading
 
