@@ -310,7 +310,7 @@ export function CaptureScreen() {
 
         <div className="grid gap-2 min-w-0">
           <Label>
-            {dimLabel('priority')} <span className="text-destructive">*</span>
+            {dimLabel('priority')}
           </Label>
           <Select value={priorityOptionId} onValueChange={setPriorityOptionId}>
             <SelectTrigger className="w-full rounded-xl h-11">
