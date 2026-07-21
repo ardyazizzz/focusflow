@@ -227,7 +227,7 @@ export default function SettingsScreen() {
     <ScrollArea className="h-full">
       <div className="mx-auto max-w-2xl min-w-0 space-y-6 p-4 pb-8 sm:p-6">
         <Card>
-          <CardHeader>
+          <CardHeader className="px-3 sm:px-6">
             <div className="flex items-center gap-2">
               <Timer className="size-4 text-primary" />
               <CardTitle className="text-base">Pomodoro Timer</CardTitle>
@@ -236,7 +236,7 @@ export default function SettingsScreen() {
               Set the default focus session duration
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 px-3 sm:px-6">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Duration</span>
               <span className="text-sm font-semibold tabular-nums">
