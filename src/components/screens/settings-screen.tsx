@@ -243,14 +243,16 @@ export default function SettingsScreen() {
                 {pomodoroValue} min
               </span>
             </div>
-            <Slider
-              value={[pomodoroValue]}
-              onValueChange={handlePomodoroChange}
-              min={5}
-              max={60}
-              step={5}
-              disabled={savePomodoroMutation.isPending}
-            />
+            <div className="max-w-xs">
+              <Slider
+                value={[pomodoroValue]}
+                onValueChange={handlePomodoroChange}
+                min={5}
+                max={60}
+                step={5}
+                disabled={savePomodoroMutation.isPending}
+              />
+            </div>
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>5 min</span>
               <span>60 min</span>
