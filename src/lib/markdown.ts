@@ -7,11 +7,11 @@ export function preprocessMarkdown(text: string): string {
     let line = lines[i]
     const trimmed = line.trimStart()
 
-    if (/^[-*]/.test(trimmed)) {
+    if (trimmed.startsWith('-') && !trimmed.startsWith('--')) {
       if (!prevLineIsItem && result.length > 0 && result[result.length - 1] !== '') {
         result.push('')
       }
-      line = line.replace(/^(\s*)[-*]\s*/, '$1- ')
+      line = line.replace(/^(\s*)-\s*/, '$1- ')
       prevLineIsItem = true
     } else {
       prevLineIsItem = false
