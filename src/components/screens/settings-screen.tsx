@@ -281,11 +281,11 @@ export default function SettingsScreen() {
                   const IconComp = CUSTOM_LABEL_ICONS[label.icon] || CUSTOM_LABEL_ICONS.flag
                   return (
                     <div key={label.id} className="rounded-lg border border-border/60 p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <IconComp className="size-4 text-primary/70" />
+                      <div className="flex flex-wrap items-center justify-between gap-y-2 mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <IconComp className="size-4 text-primary/70 shrink-0" />
                           {editingLabel?.id === label.id ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Input
                                 value={editLabelName}
                                 onChange={(e) => setEditLabelName(e.target.value)}
@@ -414,7 +414,7 @@ export default function SettingsScreen() {
 
             <div className="border-t border-border/40 pt-4">
               <Label className="text-sm font-medium">Add New Label</Label>
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Input
                   value={newLabelName}
                   onChange={(e) => setNewLabelName(e.target.value)}

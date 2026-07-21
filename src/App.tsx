@@ -57,7 +57,7 @@ export default function App() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+        <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
           {screenComponents[activeTab]}
         </div>
       </main>
