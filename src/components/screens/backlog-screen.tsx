@@ -17,6 +17,7 @@ import {
   Eye,
   Clock,
 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -618,9 +619,9 @@ function TaskCard({
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2">
-            <p className={`text-sm leading-snug flex-1 ${isCompleted ? 'text-muted-foreground line-through' : ''}`}>
-              {task.title}
-            </p>
+            <div className={`text-sm leading-snug flex-1 ${isCompleted ? 'text-muted-foreground line-through' : ''}`}>
+              <ReactMarkdown components={{ p: ({ children }) => <>{children}</> }}>{task.title}</ReactMarkdown>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">
@@ -733,7 +734,9 @@ function TaskCard({
       {task.notes && (
         <div className="flex items-start gap-1.5 pl-10 text-xs text-muted-foreground">
           <StickyNote className="size-3 shrink-0 mt-0.5" />
-          <span className="line-clamp-2">{task.notes}</span>
+          <div className="line-clamp-2">
+            <ReactMarkdown components={{ p: ({ children }) => <>{children}</> }}>{task.notes}</ReactMarkdown>
+          </div>
         </div>
       )}
     </div>

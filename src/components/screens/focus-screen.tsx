@@ -14,6 +14,7 @@ import {
   Target,
   TriangleAlert,
 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -343,7 +344,7 @@ export function FocusScreen() {
             <div className="flex items-start justify-between gap-3 mb-4">
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-normal leading-snug">
-                  {nowTask.title}
+                  <ReactMarkdown components={{ p: ({ children }) => <>{children}</> }}>{nowTask.title}</ReactMarkdown>
                 </h3>
                 {(nowTask.goal?.title || nowTask.bottleneck?.title) && (
                   <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">

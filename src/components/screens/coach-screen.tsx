@@ -271,7 +271,7 @@ export default function CoachScreen() {
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   ) : (
-                    msg.content
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
                   )}
                 </div>
               </div>
