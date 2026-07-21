@@ -345,7 +345,7 @@ export function FocusScreen() {
           }`}>
             <div className="flex items-start justify-between gap-3 mb-4">
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-normal leading-snug">
+                <h3 className="text-lg font-normal leading-snug [&_ul]:list-disc [&_ul]:list-inside [&_ul]:my-0.5 [&_ol]:list-decimal [&_ol]:list-inside [&_ol]:my-0.5">
                   <ReactMarkdown remarkPlugins={[remarkBreaks]} components={{ p: ({ children }) => <>{children}</> }}>{preprocessMarkdown(nowTask.title)}</ReactMarkdown>
                 </h3>
                 {(nowTask.goal?.title || nowTask.bottleneck?.title) && (

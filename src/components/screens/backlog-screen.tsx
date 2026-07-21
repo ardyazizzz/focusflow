@@ -621,7 +621,7 @@ function TaskCard({
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2">
-            <div className={`text-sm leading-snug flex-1 ${isCompleted ? 'text-muted-foreground line-through' : ''}`}>
+            <div className={`text-sm leading-snug flex-1 [&_ul]:list-disc [&_ul]:list-inside [&_ul]:my-0.5 [&_ol]:list-decimal [&_ol]:list-inside [&_ol]:my-0.5 ${isCompleted ? 'text-muted-foreground line-through' : ''}`}>
               <ReactMarkdown remarkPlugins={[remarkBreaks]} components={{ p: ({ children }) => <>{children}</> }}>{preprocessMarkdown(task.title)}</ReactMarkdown>
             </div>
           </div>
@@ -736,7 +736,7 @@ function TaskCard({
       {task.notes && (
         <div className="flex items-start gap-1.5 pl-10 text-xs text-muted-foreground">
           <StickyNote className="size-3 shrink-0 mt-0.5" />
-          <div className="line-clamp-2">
+          <div className="line-clamp-2 [&_ul]:list-disc [&_ul]:list-inside [&_ul]:my-0.5 [&_ol]:list-decimal [&_ol]:list-inside [&_ol]:my-0.5">
             <ReactMarkdown remarkPlugins={[remarkBreaks]} components={{ p: ({ children }) => <>{children}</> }}>{preprocessMarkdown(task.notes)}</ReactMarkdown>
           </div>
         </div>
