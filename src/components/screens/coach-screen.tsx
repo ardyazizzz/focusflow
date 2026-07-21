@@ -270,10 +270,10 @@ export default function CoachScreen() {
                 >
                   {msg.role === 'assistant' ? (
                     <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-strong:font-semibold">
-                      <ReactMarkdown remarkPlugins={[[remarkBreaks]]}>{preprocessMarkdown(msg.content)}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkBreaks]}>{preprocessMarkdown(msg.content)}</ReactMarkdown>
                     </div>
                   ) : (
-                    <ReactMarkdown remarkPlugins={[[remarkBreaks]]}>{preprocessMarkdown(msg.content)}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkBreaks]}>{preprocessMarkdown(msg.content)}</ReactMarkdown>
                   )}
                 </div>
               </div>
