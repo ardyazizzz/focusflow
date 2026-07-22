@@ -129,7 +129,7 @@ export default function SettingsScreen() {
 
   const createLabelMutation = useMutation({
     mutationFn: async ({ name, icon }: { name: string; icon: string }) => {
-      const { error } = await supabase.from('custom_labels').insert({ name, icon, sort_order: Date.now() })
+      const { error } = await supabase.from('custom_labels').insert({ name, icon, sort_order: Math.floor(Date.now() / 1000) })
       if (error) throw new Error(error.message)
     },
     onSuccess: () => {
