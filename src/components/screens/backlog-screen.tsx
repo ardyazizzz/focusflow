@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -71,8 +71,10 @@ export function BacklogScreen() {
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [labelFilters, setLabelFilters] = useState<Record<string, string>>({})
+  const [labelFilters, setLabelFilters] = useState<Record<string, string[]>>({})
   const [queueFilter, setQueueFilter] = useState<'all' | 'in' | 'out'>('all')
+  const [openFilter, setOpenFilter] = useState<string | null>(null)
+  const filterRef = useRef<HTMLDivElement>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [editForm, setEditForm] = useState<EditFormState | null>(null)
   const [deletingTask, setDeletingTask] = useState<Task | null>(null)
@@ -157,10 +159,10 @@ export function BacklogScreen() {
     const matchesQueue = queueFilter === 'all' ||
       (queueFilter === 'in' ? task.queue_order < 9999 : task.queue_order >= 9999)
     const cv = normalizeCustomValues(task.custom_values)
-    const matchesLabels = Object.entries(labelFilters).every(([labelName, filterVal]) => {
-      if (filterVal === 'all') return true
+    const matchesLabels = Object.entries(labelFilters).every(([labelName, filterVals]) => {
+      if (filterVals.length === 0) return true
       const taskVals = cv[labelName] ?? []
-      return taskVals.includes(filterVal)
+      return filterVals.some((v) => taskVals.includes(v))
     })
     return matchesSearch && matchesStatus && matchesLabels && matchesQueue
   })
@@ -232,6 +234,39 @@ export function BacklogScreen() {
     })
   }
 
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setOpenFilter(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function toggleLabelFilter(labelName: string, value: string) {
+    setLabelFilters((prev) => {
+      const current = prev[labelName] ?? []
+      if (current.includes(value)) {
+        const updated = current.filter((v) => v !== value)
+        const next = { ...prev, [labelName]: updated }
+        if (updated.length === 0) delete next[labelName]
+        return next
+      }
+      return { ...prev, [labelName]: [...current, value] }
+    })
+  }
+
+  function clearLabelFilter(labelName: string) {
+    setLabelFilters((prev) => {
+      const next = { ...prev }
+      delete next[labelName]
+      return next
+    })
+  }
+
+  const hasAnyFilter = Object.keys(labelFilters).length > 0
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -248,35 +283,68 @@ export function BacklogScreen() {
       </div>
 
       {/* ── Filter pills ──────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2" ref={filterRef}>
         {labels.map((label) => {
           const IconComp = CUSTOM_LABEL_ICONS[label.icon] || CUSTOM_LABEL_ICONS.flag
-          const filterVal = labelFilters[label.name] ?? 'all'
+          const selected = labelFilters[label.name] ?? []
+          const isActive = selected.length > 0
+          const btnLabel = isActive
+            ? selected.length === 1
+              ? selected[0]
+              : `${selected[0]} +${selected.length - 1}`
+            : label.name
           return (
-            <Select
-              key={label.id}
-              value={filterVal}
-              onValueChange={(v) =>
-                setLabelFilters((prev) => ({ ...prev, [label.name]: v }))
-              }
-            >
-              <SelectTrigger className="w-fit min-w-[90px] h-8 text-xs rounded-lg">
-                <SelectValue>
-                  <span className="inline-flex items-center gap-1">
-                    <IconComp className="size-3" />
-                    {filterVal === 'all' ? label.name : filterVal}
-                  </span>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {label.options?.map((opt) => (
-                  <SelectItem key={opt.id} value={opt.value}>
-                    {opt.value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="relative" key={label.id}>
+              <button
+                onClick={() => setOpenFilter(openFilter === label.name ? null : label.name)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                  isActive
+                    ? 'border-primary/40 bg-primary/5 text-primary'
+                    : 'border-border text-muted-foreground hover:border-border-hover'
+                }`}
+              >
+                <IconComp className="size-3" />
+                <span>{btnLabel}</span>
+              </button>
+
+              {openFilter === label.name && (
+                <div className="absolute top-full left-0 mt-1 z-50 min-w-[180px] bg-card border border-border rounded-lg shadow-lg p-1.5">
+                  {label.options?.map((opt) => {
+                    const checked = selected.includes(opt.value)
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => toggleLabelFilter(label.name, opt.value)}
+                        className={`flex items-center gap-2 w-full px-2.5 py-1.5 text-xs rounded-md transition-colors ${
+                          checked
+                            ? 'bg-primary/5 text-primary font-medium'
+                            : 'text-muted-foreground hover:bg-muted/50'
+                        }`}
+                      >
+                        <span className={`flex size-3.5 items-center justify-center rounded-[3px] border transition-colors ${
+                          checked ? 'bg-primary border-primary' : 'border-border'
+                        }`}>
+                          {checked && (
+                            <svg className="size-2.5 text-primary-foreground" viewBox="0 0 16 16" fill="currentColor">
+                              <path d="M13.3 4.2a1 1 0 0 1 0 1.4l-6.4 6.4a1 1 0 0 1-1.4 0l-3.2-3.2a1 1 0 1 1 1.4-1.4l2.5 2.5 5.7-5.7a1 1 0 0 1 1.4 1.4z" />
+                            </svg>
+                          )}
+                        </span>
+                        {opt.value}
+                      </button>
+                    )
+                  })}
+                  {isActive && (
+                    <button
+                      onClick={() => clearLabelFilter(label.name)}
+                      className="w-full text-left px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground border-t border-border/40 mt-1 pt-1"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           )
         })}
 
@@ -301,6 +369,15 @@ export function BacklogScreen() {
             <SelectItem value="out">Not in Queue</SelectItem>
           </SelectContent>
         </Select>
+
+        {hasAnyFilter && (
+          <button
+            onClick={() => setLabelFilters({})}
+            className="text-xs text-primary hover:underline font-medium"
+          >
+            Clear all
+          </button>
+        )}
       </div>
 
       <div className="max-h-[calc(100vh-260px)] min-h-0 overflow-y-auto pr-1 space-y-2">
