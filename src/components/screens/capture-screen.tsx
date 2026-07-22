@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select'
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
-import { CUSTOM_LABEL_ICONS, fetchCustomLabels } from '@/lib/icons'
+import { fetchCustomLabels } from '@/lib/icons'
 import type { Goal, Bottleneck, CustomLabel } from '@/types'
 
 export function CaptureScreen() {
@@ -203,12 +203,10 @@ export function CaptureScreen() {
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div className="grid gap-2 min-w-0">
-          <Label htmlFor="capture-title">
-            Task Description <span className="text-destructive">*</span>
-          </Label>
-          <div className="relative">
-            <Pencil className="absolute left-4 top-4 size-4 text-primary/60 pointer-events-none" />
+          <div className="grid gap-2 min-w-0">
+            <Label htmlFor="capture-title">
+              Task Description <span className="text-destructive">*</span>
+            </Label>
             <Textarea
               id="capture-title"
               ref={titleRef}
@@ -216,20 +214,16 @@ export function CaptureScreen() {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="What do you want to focus on?"
               rows={4}
-              className="rounded-xl pl-11 pr-4 pt-4 pb-4 resize-none"
+              className="rounded-xl px-4 pt-4 pb-4 resize-none"
             />
           </div>
-        </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2 min-w-0">
             <Label>Goal</Label>
             <Select value={goalId} onValueChange={handleGoalChange}>
               <SelectTrigger className="w-full rounded-xl h-11">
-                <div className="flex items-center gap-2.5">
-                  <Target className="size-4 text-primary/60 shrink-0" />
-                  <SelectValue placeholder="Select a goal" />
-                </div>
+                <SelectValue placeholder="Select a goal" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">None</SelectItem>
@@ -249,10 +243,7 @@ export function CaptureScreen() {
               onValueChange={setBottleneckId}
             >
               <SelectTrigger className="w-full rounded-xl h-11">
-                <div className="flex items-center gap-2.5">
-                  <TriangleAlert className="size-4 text-primary/60 shrink-0" />
-                  <SelectValue placeholder="Select a bottleneck" />
-                </div>
+                <SelectValue placeholder="Select a bottleneck" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">None</SelectItem>
@@ -269,14 +260,10 @@ export function CaptureScreen() {
         {labels.length > 0 && (
           <div className="space-y-4">
             {labels.map((label) => {
-              const IconComp = CUSTOM_LABEL_ICONS[label.icon] || CUSTOM_LABEL_ICONS.flag
               const selected = customValues[label.name] ?? []
               return (
                 <div key={label.id} className="grid gap-2 min-w-0">
-                  <Label className="flex items-center gap-2">
-                    <IconComp className="size-4 text-primary/60" />
-                    {label.name}
-                  </Label>
+                  <Label>{label.name}</Label>
                   <div className="flex flex-wrap gap-2">
                     {label.options?.map((opt) => {
                       const isSelected = selected.includes(opt.value)
