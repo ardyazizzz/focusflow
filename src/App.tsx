@@ -12,8 +12,8 @@ import SettingsScreen from '@/components/screens/settings-screen'
 
 const tabs: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'focus', label: 'Focus', icon: <Sun className="h-5 w-5" /> },
-  { id: 'capture', label: 'Capture', icon: <PlusCircle className="h-5 w-5" /> },
   { id: 'backlog', label: 'Backlog', icon: <Inbox className="h-5 w-5" /> },
+  { id: 'capture', label: 'Capture', icon: <PlusCircle className="h-5 w-5" /> },
   { id: 'foundation', label: 'Foundation', icon: <LayoutGrid className="h-5 w-5" /> },
   { id: 'coach', label: 'Coach', icon: <Sparkles className="h-5 w-5" /> },
   { id: 'settings', label: 'Settings', icon: <Settings className="h-5 w-5" /> },
