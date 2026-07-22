@@ -119,6 +119,7 @@ export default function SettingsScreen() {
   const [editingLabel, setEditingLabel] = useState<CustomLabel | null>(null)
   const [editLabelName, setEditLabelName] = useState('')
   const [editLabelIcon, setEditLabelIcon] = useState('')
+  const [iconPickerMode, setIconPickerMode] = useState<'new' | 'edit' | null>(null)
 
   const [optionDialogOpen, setOptionDialogOpen] = useState(false)
   const [optionLabelId, setOptionLabelId] = useState<string | null>(null)
@@ -307,22 +308,15 @@ export default function SettingsScreen() {
                                 onChange={(e) => setEditLabelName(e.target.value)}
                                 className="h-8 w-40 text-sm"
                                 autoFocus
-                              />
-                              <div className="flex gap-1">
-                                {ICON_PICKER_OPTIONS.slice(0, 8).map((ico) => {
-                                  const I = CUSTOM_LABEL_ICONS[ico]
-                                  return (
-                                    <button
-                                      key={ico}
-                                      type="button"
-                                      onClick={() => setEditLabelIcon(ico)}
-                                      className={`rounded p-1 transition-colors ${editLabelIcon === ico ? 'bg-primary/10 text-primary ring-1 ring-primary/30' : 'hover:bg-muted text-muted-foreground'}`}
-                                    >
-                                      <I className="size-3.5" />
-                                    </button>
-                                  )
-                                })}
-                              </div>
+                               />
+                              <button
+                                type="button"
+                                onClick={() => setIconPickerMode('edit')}
+                                className="flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground hover:border-border hover:text-foreground"
+                              >
+                                {(() => { const Ico = CUSTOM_LABEL_ICONS[editLabelIcon] || CUSTOM_LABEL_ICONS.flag; return <Ico className="size-3.5" /> })()}
+                                Change
+                              </button>
                               <Button size="sm" variant="default" className="h-8"
                                 onClick={() => updateLabelMutation.mutate({ id: label.id, name: editLabelName, icon: editLabelIcon })}
                                 disabled={updateLabelMutation.isPending || !editLabelName.trim()}
@@ -480,22 +474,14 @@ export default function SettingsScreen() {
                     }
                   }}
                 />
-                <div className="flex gap-0.5">
-                  {ICON_PICKER_OPTIONS.slice(0, 12).map((ico) => {
-                    const I = CUSTOM_LABEL_ICONS[ico]
-                    return (
-                      <button
-                        key={ico}
-                        type="button"
-                        onClick={() => setNewLabelIcon(ico)}
-                        className={`rounded p-1.5 transition-colors ${newLabelIcon === ico ? 'bg-primary/10 text-primary ring-1 ring-primary/30' : 'hover:bg-muted text-muted-foreground'}`}
-                        title={ico}
-                      >
-                        <I className="size-3.5" />
-                      </button>
-                    )
-                  })}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIconPickerMode('new')}
+                  className="flex items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground hover:border-border hover:text-foreground shrink-0"
+                >
+                  {(() => { const Ico = CUSTOM_LABEL_ICONS[newLabelIcon] || CUSTOM_LABEL_ICONS.flag; return <Ico className="size-3.5" /> })()}
+                  Change
+                </button>
                 <Button
                   size="sm"
                   onClick={() => createLabelMutation.mutate({ name: newLabelName.trim(), icon: newLabelIcon })}
@@ -645,6 +631,42 @@ export default function SettingsScreen() {
               {editingOption ? 'Save Changes' : 'Add Option'}
             </Button>
             </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={iconPickerMode !== null} onOpenChange={(o) => { if (!o) setIconPickerMode(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pick an Icon</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-6 gap-2 py-2">
+            {ICON_PICKER_OPTIONS.map((ico) => {
+              const I = CUSTOM_LABEL_ICONS[ico]
+              const isSelected = iconPickerMode === 'edit' ? editLabelIcon === ico : newLabelIcon === ico
+              return (
+                <button
+                  key={ico}
+                  type="button"
+                  onClick={() => {
+                    if (iconPickerMode === 'edit') {
+                      setEditLabelIcon(ico)
+                    } else {
+                      setNewLabelIcon(ico)
+                    }
+                    setIconPickerMode(null)
+                  }}
+                  className={`flex items-center justify-center rounded-lg border p-3 transition-colors ${
+                    isSelected
+                      ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/30'
+                      : 'border-border/60 hover:border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                  title={ico}
+                >
+                  <I className="size-5" />
+                </button>
+              )
+            })}
+          </div>
         </DialogContent>
       </Dialog>
     </>
