@@ -9,6 +9,8 @@ import {
   Loader2,
   GripVertical,
   Sparkles,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -162,6 +164,19 @@ export default function SettingsScreen() {
     onError: () => toast.error('Failed to delete label'),
   })
 
+  const reorderLabelMutation = useMutation({
+    mutationFn: async ({ id, neighborId, myNewOrder, neighborNewOrder }: { id: string; neighborId: string; myNewOrder: number; neighborNewOrder: number }) => {
+      const { error: e1 } = await supabase.from('custom_labels').update({ sort_order: myNewOrder }).eq('id', id)
+      if (e1) throw new Error(e1.message)
+      const { error: e2 } = await supabase.from('custom_labels').update({ sort_order: neighborNewOrder }).eq('id', neighborId)
+      if (e2) throw new Error(e2.message)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['custom_labels'] })
+    },
+    onError: () => toast.error('Failed to reorder label'),
+  })
+
   const createOptionMutation = useMutation({
     mutationFn: async ({ label_id, value, sort_order }: { label_id: string; value: string; sort_order: number }) => {
       const { error } = await supabase.from('custom_label_options').insert({ label_id, value, sort_order })
@@ -276,8 +291,10 @@ export default function SettingsScreen() {
               </p>
             ) : (
               <div className="space-y-3">
-                {labels.map((label) => {
+                {labels.map((label, index) => {
                   const IconComp = CUSTOM_LABEL_ICONS[label.icon] || CUSTOM_LABEL_ICONS.flag
+                  const isFirst = index === 0
+                  const isLast = index === labels.length - 1
                   return (
                     <div key={label.id} className="rounded-lg border border-border/60 p-3">
                       <div className="flex flex-wrap items-center justify-between gap-y-2 mb-2">
@@ -333,6 +350,44 @@ export default function SettingsScreen() {
                           )}
                         </div>
                         <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 text-muted-foreground"
+                            onClick={() => {
+                              const neighbor = labels[index - 1]
+                              if (!neighbor) return
+                              reorderLabelMutation.mutate({
+                                id: label.id,
+                                neighborId: neighbor.id,
+                                myNewOrder: neighbor.sort_order,
+                                neighborNewOrder: label.sort_order,
+                              })
+                            }}
+                            disabled={isFirst || reorderLabelMutation.isPending}
+                            title="Move up"
+                          >
+                            <ChevronUp className="size-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 text-muted-foreground"
+                            onClick={() => {
+                              const neighbor = labels[index + 1]
+                              if (!neighbor) return
+                              reorderLabelMutation.mutate({
+                                id: label.id,
+                                neighborId: neighbor.id,
+                                myNewOrder: neighbor.sort_order,
+                                neighborNewOrder: label.sort_order,
+                              })
+                            }}
+                            disabled={isLast || reorderLabelMutation.isPending}
+                            title="Move down"
+                          >
+                            <ChevronDown className="size-3.5" />
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
