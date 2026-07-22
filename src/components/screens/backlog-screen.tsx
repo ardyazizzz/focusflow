@@ -350,7 +350,7 @@ export function BacklogScreen() {
 
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
           <SelectTrigger className="w-fit min-w-[90px] h-8 text-xs rounded-lg">
-            <SelectValue placeholder="Status" />
+            <SelectValue placeholder="Status">{statusFilter === 'all' ? 'Status' : statusFilter}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All</SelectItem>
@@ -361,7 +361,9 @@ export function BacklogScreen() {
 
         <Select value={queueFilter} onValueChange={(v) => setQueueFilter(v as 'all' | 'in' | 'out')}>
           <SelectTrigger className="w-fit min-w-[110px] h-8 text-xs rounded-lg">
-            <SelectValue placeholder="Queue" />
+            <SelectValue placeholder="Queue">
+              {queueFilter === 'all' ? 'Queue' : queueFilter === 'in' ? 'In Queue' : 'Not in Queue'}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All</SelectItem>
