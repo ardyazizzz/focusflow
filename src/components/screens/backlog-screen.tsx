@@ -376,7 +376,9 @@ export function BacklogScreen() {
           {editForm && (
             <div className="grid gap-4 py-2">
               <div className="grid gap-2 min-w-0">
-                <Label htmlFor="edit-title">Description</Label>
+                <Label htmlFor="edit-title" className="flex items-center gap-1.5">
+                  <Pencil className="size-3.5 text-primary/60 shrink-0" />
+                  Description</Label>
                 <Textarea
                   id="edit-title"
                   value={editForm.title}
@@ -390,7 +392,9 @@ export function BacklogScreen() {
               </div>
 
               <div className="grid gap-2 min-w-0">
-                <Label>Goal</Label>
+                <Label className="flex items-center gap-1.5">
+                  <Target className="size-3.5 text-primary/60 shrink-0" />
+                  Goal</Label>
                 <Select
                   value={editForm.goal_id}
                   onValueChange={(val) =>
@@ -416,7 +420,9 @@ export function BacklogScreen() {
               </div>
 
               <div className="grid gap-2 min-w-0">
-                <Label>Bottleneck</Label>
+                <Label className="flex items-center gap-1.5">
+                  <TriangleAlert className="size-3.5 text-primary/60 shrink-0" />
+                  Bottleneck</Label>
                 <Select
                   value={editForm.bottleneck_id}
                   onValueChange={(val) =>
@@ -475,7 +481,9 @@ export function BacklogScreen() {
               })}
 
               <div className="grid gap-2 min-w-0">
-                <Label htmlFor="edit-deadline">Deadline</Label>
+                <Label htmlFor="edit-deadline" className="flex items-center gap-1.5">
+                  <CalendarDays className="size-3.5 text-primary/60 shrink-0" />
+                  Deadline</Label>
                 <Input
                   id="edit-deadline"
                   type="date"
@@ -487,7 +495,9 @@ export function BacklogScreen() {
               </div>
 
               <div className="grid gap-2 min-w-0">
-                <Label htmlFor="edit-notes">Notes</Label>
+                <Label htmlFor="edit-notes" className="flex items-center gap-1.5">
+                  <StickyNote className="size-3.5 text-primary/60 shrink-0" />
+                  Notes</Label>
                 <Textarea
                   id="edit-notes"
                   value={editForm.notes}

@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select'
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
-import { fetchCustomLabels } from '@/lib/icons'
+import { CUSTOM_LABEL_ICONS, fetchCustomLabels } from '@/lib/icons'
 import type { Goal, Bottleneck, CustomLabel } from '@/types'
 
 export function CaptureScreen() {
@@ -204,7 +204,8 @@ export function CaptureScreen() {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="grid gap-2 min-w-0">
-            <Label htmlFor="capture-title">
+            <Label htmlFor="capture-title" className="flex items-center gap-1.5">
+              <Pencil className="size-3.5 text-primary/60 shrink-0" />
               Task Description <span className="text-destructive">*</span>
             </Label>
             <Textarea
@@ -220,7 +221,10 @@ export function CaptureScreen() {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2 min-w-0">
-            <Label>Goal</Label>
+            <Label className="flex items-center gap-1.5">
+              <Target className="size-3.5 text-primary/60 shrink-0" />
+              Goal
+            </Label>
             <Select value={goalId} onValueChange={handleGoalChange}>
               <SelectTrigger className="w-full rounded-xl h-11">
                 <SelectValue placeholder="Select a goal" />
@@ -237,7 +241,10 @@ export function CaptureScreen() {
           </div>
 
           <div className="grid gap-2 min-w-0">
-            <Label>Bottleneck</Label>
+            <Label className="flex items-center gap-1.5">
+              <TriangleAlert className="size-3.5 text-primary/60 shrink-0" />
+              Bottleneck
+            </Label>
             <Select
               value={bottleneckId}
               onValueChange={setBottleneckId}
@@ -260,10 +267,14 @@ export function CaptureScreen() {
         {labels.length > 0 && (
           <div className="space-y-4">
             {labels.map((label) => {
+              const IconComp = CUSTOM_LABEL_ICONS[label.icon] || CUSTOM_LABEL_ICONS.flag
               const selected = customValues[label.name] ?? []
               return (
                 <div key={label.id} className="grid gap-2 min-w-0">
-                  <Label>{label.name}</Label>
+                  <Label className="flex items-center gap-1.5">
+                    <IconComp className="size-3.5 text-primary/60 shrink-0" />
+                    {label.name}
+                  </Label>
                   <div className="flex flex-wrap gap-2">
                     {label.options?.map((opt) => {
                       const isSelected = selected.includes(opt.value)
