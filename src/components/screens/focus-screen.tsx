@@ -11,6 +11,7 @@ import {
   ListChecks,
   Square,
   Sparkles,
+  RotateCcw,
   Target,
   TriangleAlert,
 } from 'lucide-react'
@@ -255,10 +256,19 @@ export function FocusScreen() {
                   className="text-primary transition-all duration-1000 ease-linear" />
               </svg>
               <div className="absolute flex flex-col items-center">
-                <span className="text-3xl font-bold tabular-nums tracking-tight">
-                  {formatTime(pomodoroState.timeRemaining)}
-                </span>
-                <span className="mt-1 text-[10px] text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <span className="text-3xl font-bold tabular-nums tracking-tight">
+                    {formatTime(pomodoroState.timeRemaining)}
+                  </span>
+                  <button
+                    onClick={() => startPomodoro(activeTask.id, pomodoroMinutes)}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    title="Reset timer"
+                  >
+                    <RotateCcw className="size-4" />
+                  </button>
+                </div>
+                <span className="mt-0.5 text-[10px] text-muted-foreground">
                   {pomodoroState.isRunning ? 'Focusing' : 'Paused'}
                 </span>
               </div>
