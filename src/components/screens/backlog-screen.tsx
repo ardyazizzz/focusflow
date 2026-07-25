@@ -727,7 +727,7 @@ function TaskCard({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto group-focus:pointer-events-auto">
+        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto group-focus:pointer-events-auto [&:focus-within]:opacity-100 [&:focus-within]:pointer-events-auto">
           {isCompleted ? (
             <Button
               variant="ghost"
