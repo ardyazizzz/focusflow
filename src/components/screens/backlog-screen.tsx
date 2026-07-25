@@ -727,7 +727,7 @@ function TaskCard({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">
+        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto group-focus:pointer-events-auto">
           {isCompleted ? (
             <Button
               variant="ghost"
@@ -820,7 +820,7 @@ function TaskCard({
 
       {/* Bottom row: remaining custom labels (hover-revealed) */}
       {labelEntries.length > 2 && (
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto group-focus:pointer-events-auto">
           {labelEntries.slice(2).map(([labelName, vals]) => {
             const labelDef = labels.find((l) => l.name === labelName)
             const IconComp = labelDef ? (CUSTOM_LABEL_ICONS[labelDef.icon] || CUSTOM_LABEL_ICONS.flag) : null
