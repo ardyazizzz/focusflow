@@ -8,7 +8,7 @@ import {
   ChevronRight,
   ChevronDown,
   GripVertical,
-  Flag,
+  Award,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -1002,7 +1002,7 @@ function BottleneckCard({
                     key={ms.id}
                     className="group/ms flex items-center gap-2 pl-1 pr-1 py-1.5 rounded-sm hover:bg-muted/60 transition-colors"
                   >
-                    <Flag className="size-3 text-muted-foreground/60 shrink-0" />
+                    <Award className="size-3 text-muted-foreground/60 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <span className="text-xs truncate block">{ms.title}</span>
                     </div>

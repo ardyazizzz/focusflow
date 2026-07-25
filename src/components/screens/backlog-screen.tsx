@@ -12,7 +12,7 @@ import {
   CheckCircle2,
   Target,
   TriangleAlert,
-  Flag,
+  Award,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
@@ -560,7 +560,7 @@ export function BacklogScreen() {
               {milestonesForBottleneck.length > 0 && (
                 <div className="grid gap-2 min-w-0">
                   <Label className="flex items-center gap-1.5">
-                    <Flag className="size-3.5 text-primary/60 shrink-0" />
+                    <Award className="size-3.5 text-primary/60 shrink-0" />
                     Milestone</Label>
                   <Select
                     value={editForm.milestone_id}
@@ -856,7 +856,7 @@ function TaskCard({
           )}
           {task.milestone?.title && (
             <span className="inline-flex items-center gap-1">
-              <Flag className="size-3" />
+              <Award className="size-3" />
               {task.milestone.title}
             </span>
           )}

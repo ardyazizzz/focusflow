@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ChevronDown, ChevronUp, Plus, Loader2, Link2, Pencil, Target, TriangleAlert, Flag } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus, Loader2, Link2, Pencil, Target, TriangleAlert, Award } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -288,7 +288,7 @@ export function CaptureScreen() {
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2 min-w-0">
               <Label className="flex items-center gap-1.5">
-                <Flag className="size-3.5 text-primary/60 shrink-0" />
+                <Award className="size-3.5 text-primary/60 shrink-0" />
                 Milestone
               </Label>
               <Select

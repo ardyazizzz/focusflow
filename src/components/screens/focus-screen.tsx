@@ -14,7 +14,7 @@ import {
   RotateCcw,
   Target,
   TriangleAlert,
-  Flag,
+  Award,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
@@ -244,7 +244,7 @@ export function FocusScreen() {
               )}
               {nowTask.milestone?.title && (
                 <div className="flex items-start gap-1.5 min-w-0">
-                  <Flag className="size-3 mt-0.5 shrink-0" />
+                  <Award className="size-3 mt-0.5 shrink-0" />
                   <span className="line-clamp-2">{nowTask.milestone.title}</span>
                 </div>
               )}
