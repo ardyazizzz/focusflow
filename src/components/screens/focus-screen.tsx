@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Target,
   TriangleAlert,
+  Flag,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
@@ -47,7 +48,7 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-const TASK_SELECT = '*, goal:goals(id, title), bottleneck:bottlenecks(id, title), custom_values'
+const TASK_SELECT = '*, goal:goals(id, title), bottleneck:bottlenecks(id, title), milestone:milestones(id, title), custom_values'
 
 export function FocusScreen() {
   const queryClient = useQueryClient()
@@ -227,7 +228,7 @@ export function FocusScreen() {
             <ReactMarkdown remarkPlugins={[remarkBreaks]} components={{ p: ({ children }) => <>{children}</> }}>{preprocessMarkdown(nowTask.title)}</ReactMarkdown>
           </h3>
 
-          {(nowTask.goal?.title || nowTask.bottleneck?.title) && (
+          {(nowTask.goal?.title || nowTask.bottleneck?.title || nowTask.milestone?.title) && (
             <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
               {nowTask.goal?.title && (
                 <div className="flex items-start gap-1.5 min-w-0">
@@ -239,6 +240,12 @@ export function FocusScreen() {
                 <div className="flex items-start gap-1.5 min-w-0">
                   <TriangleAlert className="size-3 mt-0.5 shrink-0" />
                   <span className="line-clamp-2">{nowTask.bottleneck.title}</span>
+                </div>
+              )}
+              {nowTask.milestone?.title && (
+                <div className="flex items-start gap-1.5 min-w-0">
+                  <Flag className="size-3 mt-0.5 shrink-0" />
+                  <span className="line-clamp-2">{nowTask.milestone.title}</span>
                 </div>
               )}
             </div>

@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Target,
   TriangleAlert,
+  Flag,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
@@ -50,7 +51,7 @@ import { Separator } from '@/components/ui/separator'
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
 import { CUSTOM_LABEL_ICONS, fetchCustomLabels, normalizeCustomValues } from '@/lib/icons'
-import type { Task, Goal, Bottleneck, CustomLabel, CustomLabelOption } from '@/types'
+import type { Task, Goal, Bottleneck, Milestone, CustomLabel, CustomLabelOption } from '@/types'
 
 type StatusFilter = 'all' | 'pending' | 'completed'
 
@@ -58,12 +59,13 @@ interface EditFormState {
   title: string
   goal_id: string
   bottleneck_id: string
+  milestone_id: string
   custom_values: Record<string, string[]>
   deadline: string
   notes: string
 }
 
-const TASK_SELECT = '*, goal:goals(id, title), bottleneck:bottlenecks(id, title), custom_values'
+const TASK_SELECT = '*, goal:goals(id, title), bottleneck:bottlenecks(id, title), milestone:milestones(id, title), custom_values'
 
 export function BacklogScreen() {
   const queryClient = useQueryClient()
@@ -73,6 +75,7 @@ export function BacklogScreen() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [labelFilters, setLabelFilters] = useState<Record<string, string[]>>({})
   const [queueFilter, setQueueFilter] = useState<'all' | 'in' | 'out'>('all')
+  const [milestoneFilter, setMilestoneFilter] = useState('all')
   const [openFilter, setOpenFilter] = useState<string | null>(null)
   const filterRef = useRef<HTMLDivElement>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -112,12 +115,22 @@ export function BacklogScreen() {
     enabled: activeTab === 'backlog',
   })
 
+  const { data: allMilestones = [] } = useQuery<Milestone[]>({
+    queryKey: ['milestones'],
+    queryFn: async () => {
+      const { data } = await supabase.from('milestones').select('*').order('created_at', { ascending: false })
+      return (data ?? []) as Milestone[]
+    },
+    enabled: activeTab === 'backlog',
+  })
+
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Task> }) => {
       const updateData: Record<string, unknown> = {}
       if (data.title !== undefined) updateData.title = data.title
       if (data.goal_id !== undefined) updateData.goal_id = data.goal_id
       if (data.bottleneck_id !== undefined) updateData.bottleneck_id = data.bottleneck_id
+      if (data.milestone_id !== undefined) updateData.milestone_id = data.milestone_id
       if (data.custom_values !== undefined) updateData.custom_values = data.custom_values
       if (data.deadline !== undefined) updateData.deadline = data.deadline ? new Date(data.deadline).toISOString() : null
       if (data.notes !== undefined) updateData.notes = data.notes || null
@@ -158,17 +171,21 @@ export function BacklogScreen() {
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter
     const matchesQueue = queueFilter === 'all' ||
       (queueFilter === 'in' ? task.queue_order < 9999 : task.queue_order >= 9999)
+    const matchesMilestone = milestoneFilter === 'all' || task.milestone_id === milestoneFilter
     const cv = normalizeCustomValues(task.custom_values)
     const matchesLabels = Object.entries(labelFilters).every(([labelName, filterVals]) => {
       if (filterVals.length === 0) return true
       const taskVals = cv[labelName] ?? []
       return filterVals.some((v) => taskVals.includes(v))
     })
-    return matchesSearch && matchesStatus && matchesLabels && matchesQueue
+    return matchesSearch && matchesStatus && matchesLabels && matchesQueue && matchesMilestone
   })
 
   const bottlenecksForGoal = allBottlenecks.filter(
     (b) => b.goal_id === editForm?.goal_id
+  )
+  const milestonesForBottleneck = allMilestones.filter(
+    (m) => m.bottleneck_id === editForm?.bottleneck_id
   )
 
   function openEdit(task: Task) {
@@ -177,6 +194,7 @@ export function BacklogScreen() {
       title: task.title,
       goal_id: task.goal_id ?? '',
       bottleneck_id: task.bottleneck_id ?? '',
+      milestone_id: task.milestone_id ?? '',
       custom_values: normalizeCustomValues(task.custom_values),
       deadline: task.deadline
         ? new Date(task.deadline).toISOString().split('T')[0]
@@ -193,6 +211,7 @@ export function BacklogScreen() {
         title: editForm.title,
         goal_id: editForm.goal_id || null,
         bottleneck_id: editForm.bottleneck_id || null,
+        milestone_id: editForm.milestone_id || null,
         custom_values: editForm.custom_values,
         deadline: editForm.deadline || null,
         notes: editForm.notes || null,
@@ -372,6 +391,22 @@ export function BacklogScreen() {
           </SelectContent>
         </Select>
 
+        {allMilestones.length > 0 && (
+          <Select value={milestoneFilter} onValueChange={setMilestoneFilter}>
+            <SelectTrigger className="w-fit min-w-[110px] h-8 text-xs rounded-lg">
+              <SelectValue placeholder="Milestone">
+                {milestoneFilter === 'all' ? 'Milestone' : allMilestones.find(m => m.id === milestoneFilter)?.title ?? 'Milestone'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              {allMilestones.map((m) => (
+                <SelectItem key={m.id} value={m.id}>{m.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
         {hasAnyFilter && (
           <button
             onClick={() => setLabelFilters({})}
@@ -505,7 +540,7 @@ export function BacklogScreen() {
                 <Select
                   value={editForm.bottleneck_id}
                   onValueChange={(val) =>
-                    setEditForm({ ...editForm, bottleneck_id: val })
+                    setEditForm({ ...editForm, bottleneck_id: val, milestone_id: '' })
                   }
                 >
                   <SelectTrigger className="w-full">
@@ -521,6 +556,32 @@ export function BacklogScreen() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {milestonesForBottleneck.length > 0 && (
+                <div className="grid gap-2 min-w-0">
+                  <Label className="flex items-center gap-1.5">
+                    <Flag className="size-3.5 text-primary/60 shrink-0" />
+                    Milestone</Label>
+                  <Select
+                    value={editForm.milestone_id}
+                    onValueChange={(val) =>
+                      setEditForm({ ...editForm, milestone_id: val })
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select milestone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {milestonesForBottleneck.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {labels.map((label) => {
                 const IconComp = CUSTOM_LABEL_ICONS[label.icon] || CUSTOM_LABEL_ICONS.flag
@@ -772,8 +833,8 @@ function TaskCard({
         </div>
       </div>
 
-      {/* Meta row: goal & bottleneck */}
-      {(task.goal?.title || task.bottleneck?.title) && (
+      {/* Meta row: goal, bottleneck & milestone */}
+      {(task.goal?.title || task.bottleneck?.title || task.milestone?.title) && (
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-10 text-xs text-muted-foreground">
           {task.goal?.title && (
             <span className="inline-flex items-center gap-1">
@@ -788,6 +849,15 @@ function TaskCard({
             <span className="inline-flex items-center gap-1">
               <TriangleAlert className="size-3" />
               {task.bottleneck.title}
+            </span>
+          )}
+          {task.bottleneck?.title && task.milestone?.title && (
+            <span className="text-border">›</span>
+          )}
+          {task.milestone?.title && (
+            <span className="inline-flex items-center gap-1">
+              <Flag className="size-3" />
+              {task.milestone.title}
             </span>
           )}
         </div>

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ChevronDown, ChevronUp, Plus, Loader2, Link2, Pencil, Target, TriangleAlert } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus, Loader2, Link2, Pencil, Target, TriangleAlert, Flag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -17,7 +17,7 @@ import {
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
 import { CUSTOM_LABEL_ICONS, fetchCustomLabels } from '@/lib/icons'
-import type { Goal, Bottleneck, CustomLabel } from '@/types'
+import type { Goal, Bottleneck, Milestone, CustomLabel } from '@/types'
 
 export function CaptureScreen() {
   const queryClient = useQueryClient()
@@ -28,6 +28,7 @@ export function CaptureScreen() {
   const [title, setTitle] = useState('')
   const [goalId, setGoalId] = useState('')
   const [bottleneckId, setBottleneckId] = useState('')
+  const [milestoneId, setMilestoneId] = useState('')
   const [customValues, setCustomValues] = useState<Record<string, string[]>>({})
   const [deadline, setDeadline] = useState('')
   const [notes, setNotes] = useState('')
@@ -50,6 +51,14 @@ export function CaptureScreen() {
       },
     })
 
+  const { data: allMilestones = [] } = useQuery<Milestone[]>({
+    queryKey: ['milestones'],
+    queryFn: async () => {
+      const { data } = await supabase.from('milestones').select('*').order('created_at', { ascending: false })
+      return (data ?? []) as Milestone[]
+    },
+  })
+
   const { data: labelsData } = useQuery<CustomLabel[]>({
     queryKey: ['custom_labels'],
     queryFn: fetchCustomLabels,
@@ -58,10 +67,17 @@ export function CaptureScreen() {
   const labels = labelsData ?? []
 
   const bottlenecksForGoal = allBottlenecks.filter((b) => b.goal_id === goalId)
+  const milestonesForBottleneck = allMilestones.filter((m) => m.bottleneck_id === bottleneckId)
 
   function handleGoalChange(val: string) {
     setGoalId(val)
     setBottleneckId('')
+    setMilestoneId('')
+  }
+
+  function handleBottleneckChange(val: string) {
+    setBottleneckId(val)
+    setMilestoneId('')
   }
 
   function toggleOption(labelName: string, optionValue: string) {
@@ -83,6 +99,7 @@ export function CaptureScreen() {
       title: string
       goal_id: string | null
       bottleneck_id: string | null
+      milestone_id: string | null
       custom_values: Record<string, string[]>
       deadline?: string
       notes?: string
@@ -93,6 +110,7 @@ export function CaptureScreen() {
           title: data.title.trim(),
           goal_id: data.goal_id || null,
           bottleneck_id: data.bottleneck_id || null,
+          milestone_id: data.milestone_id || null,
           custom_values: data.custom_values,
           deadline: data.deadline ? new Date(data.deadline).toISOString() : null,
           notes: data.notes?.trim() || null,
@@ -118,6 +136,7 @@ export function CaptureScreen() {
     setTitle('')
     setGoalId('')
     setBottleneckId('')
+    setMilestoneId('')
     setCustomValues({})
     setDeadline('')
     setNotes('')
@@ -132,6 +151,7 @@ export function CaptureScreen() {
       title: title.trim(),
       goal_id: goalId,
       bottleneck_id: bottleneckId,
+      milestone_id: milestoneId,
       custom_values: customValues,
       deadline: deadline || undefined,
       notes: notes.trim() || undefined,
@@ -247,7 +267,7 @@ export function CaptureScreen() {
             </Label>
             <Select
               value={bottleneckId}
-              onValueChange={setBottleneckId}
+              onValueChange={handleBottleneckChange}
             >
               <SelectTrigger className="w-full rounded-xl h-11">
                 <SelectValue placeholder="Select a bottleneck" />
@@ -263,6 +283,33 @@ export function CaptureScreen() {
             </Select>
           </div>
         </div>
+
+        {milestonesForBottleneck.length > 0 && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2 min-w-0">
+              <Label className="flex items-center gap-1.5">
+                <Flag className="size-3.5 text-primary/60 shrink-0" />
+                Milestone
+              </Label>
+              <Select
+                value={milestoneId}
+                onValueChange={setMilestoneId}
+              >
+                <SelectTrigger className="w-full rounded-xl h-11">
+                  <SelectValue placeholder="Select a milestone" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {milestonesForBottleneck.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
 
         {labels.length > 0 && (
           <div className="space-y-4">

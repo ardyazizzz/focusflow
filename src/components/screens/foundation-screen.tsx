@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ChevronDown,
   GripVertical,
+  Flag,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -40,10 +41,18 @@ import {
 } from '@/components/ui/collapsible'
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
-import type { Goal, Bottleneck } from '@/types'
+import type { Goal, Bottleneck, Milestone } from '@/types'
 
 interface GoalWithCount extends Goal {
   _count: { bottlenecks: number; tasks: number }
+}
+
+interface FoundationBottleneck extends Bottleneck {
+  _count: { tasks: number; milestones: number }
+}
+
+interface FoundationMilestone extends Milestone {
+  _count: { tasks: number }
 }
 
 type GoalRow = { id: string; title: string; description: string | null; created_at: string; updated_at: string; bottlenecks?: unknown[]; tasks?: unknown[]; [key: string]: unknown }
@@ -72,6 +81,8 @@ export function FoundationScreen() {
   const activeTab = useAppStore((s) => s.activeTab)
   const expandedGoalId = useAppStore((s) => s.foundationExpandedGoal)
   const setExpandedGoalId = useAppStore((s) => s.setFoundationExpandedGoal)
+  const expandedBottleneckId = useAppStore((s) => s.foundationExpandedBottleneck)
+  const setExpandedBottleneckId = useAppStore((s) => s.setFoundationExpandedBottleneck)
 
   const [newGoalTitle, setNewGoalTitle] = useState('')
   const [newGoalDesc, setNewGoalDesc] = useState('')
@@ -87,22 +98,49 @@ export function FoundationScreen() {
   const [bnEditDesc, setBnEditDesc] = useState('')
   const [deletingBn, setDeletingBn] = useState<Bottleneck | null>(null)
 
+  const [msForms, setMsForms] = useState<Record<string, string>>({})
+  const [editingMs, setEditingMs] = useState<FoundationMilestone | null>(null)
+  const [msEditTitle, setMsEditTitle] = useState('')
+  const [deletingMs, setDeletingMs] = useState<FoundationMilestone | null>(null)
+
   const { data: goals = [], isLoading: goalsLoading } = useQuery<GoalWithCount[]>({
     queryKey: ['goals'],
     queryFn: fetchGoals,
     enabled: activeTab === 'foundation',
   })
 
-  const { data: bottlenecks = [], isLoading: bnsLoading } = useQuery<Bottleneck[]>({
+  const { data: bottlenecks = [], isLoading: bnsLoading } = useQuery<FoundationBottleneck[]>({
     queryKey: ['bottlenecks'],
     queryFn: async () => {
-      const { data } = await supabase.from('bottlenecks').select('*, goal:goals(id, title), tasks:tasks(count)').order('created_at', { ascending: false })
-      const raw = (data ?? []) as ({ id: string; title: string; description: string | null; goal_id: string; createdAt: string; updatedAt: string; goal: { id: string; title: string }; tasks?: unknown[] })[]
+      const { data } = await supabase.from('bottlenecks').select('*, goal:goals(id, title), tasks:tasks(count), milestones:milestones(count)').order('created_at', { ascending: false })
+      const raw = (data ?? []) as ({ id: string; title: string; description: string | null; goal_id: string; createdAt: string; updatedAt: string; goal: { id: string; title: string }; tasks?: unknown[]; milestones?: unknown[] })[]
       return raw.map(b => ({
         ...b,
         description: b.description ?? null,
-        _count: { tasks: ((b.tasks as [{ count: number }] | undefined)?.[0]?.count ?? 0) },
-      })) as unknown as Bottleneck[]
+        _count: {
+          tasks: ((b.tasks as [{ count: number }] | undefined)?.[0]?.count ?? 0),
+          milestones: ((b.milestones as [{ count: number }] | undefined)?.[0]?.count ?? 0),
+        },
+      })) as unknown as FoundationBottleneck[]
+    },
+    enabled: activeTab === 'foundation',
+  })
+
+  const { data: milestones = [] } = useQuery<FoundationMilestone[]>({
+    queryKey: ['milestones'],
+    queryFn: async () => {
+      const { data } = await supabase.from('milestones').select('*, tasks:tasks(count)').order('created_at', { ascending: false })
+      const raw = (data ?? []) as ({ id: string; title: string; bottleneck_id: string; created_at: string; updated_at: string; tasks?: unknown[] })[]
+      return raw.map(m => ({
+        id: m.id,
+        title: m.title,
+        bottleneck_id: m.bottleneck_id,
+        created_at: m.created_at,
+        updated_at: m.updated_at,
+        _count: {
+          tasks: ((m.tasks as [{ count: number }] | undefined)?.[0]?.count ?? 0),
+        },
+      })) as FoundationMilestone[]
     },
     enabled: activeTab === 'foundation',
   })
@@ -148,6 +186,7 @@ export function FoundationScreen() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['goals'] })
       queryClient.invalidateQueries({ queryKey: ['bottlenecks'] })
+      queryClient.invalidateQueries({ queryKey: ['milestones'] })
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       toast.success('Goal deleted')
       setDeletingGoal(null)
@@ -188,17 +227,66 @@ export function FoundationScreen() {
       const { error: taskError } = await supabase.from('tasks').delete().eq('bottleneck_id', id)
       if (taskError) throw new Error(taskError.message)
 
+      const { error: msError } = await supabase.from('milestones').delete().eq('bottleneck_id', id)
+      if (msError) throw new Error(msError.message)
+
       const { error } = await supabase.from('bottlenecks').delete().eq('id', id)
       if (error) throw new Error(error.message)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bottlenecks'] })
+      queryClient.invalidateQueries({ queryKey: ['milestones'] })
       queryClient.invalidateQueries({ queryKey: ['goals'] })
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       toast.success('Bottleneck deleted')
       setDeletingBn(null)
     },
     onError: () => toast.error('Failed to delete bottleneck'),
+  })
+
+  const createMsMutation = useMutation({
+    mutationFn: async (data: { title: string; bottleneck_id: string }) => {
+      const { error } = await supabase.from('milestones').insert({ title: data.title, bottleneck_id: data.bottleneck_id })
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['milestones'] })
+      queryClient.invalidateQueries({ queryKey: ['bottlenecks'] })
+      toast.success('Milestone created')
+      setMsForms((prev) => ({ ...prev, [variables.bottleneck_id]: '' }))
+    },
+    onError: () => toast.error('Failed to create milestone'),
+  })
+
+  const updateMsMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { title: string } }) => {
+      const { error } = await supabase.from('milestones').update({ title: data.title }).eq('id', id)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['milestones'] })
+      toast.success('Milestone updated')
+      setEditingMs(null)
+    },
+    onError: () => toast.error('Failed to update milestone'),
+  })
+
+  const deleteMsMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error: taskError } = await supabase.from('tasks').update({ milestone_id: null }).eq('milestone_id', id)
+      if (taskError) throw new Error(taskError.message)
+
+      const { error } = await supabase.from('milestones').delete().eq('id', id)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['milestones'] })
+      queryClient.invalidateQueries({ queryKey: ['bottlenecks'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      toast.success('Milestone deleted')
+      setDeletingMs(null)
+    },
+    onError: () => toast.error('Failed to delete milestone'),
   })
 
   function handleCreateGoal(e: React.FormEvent) {
@@ -265,8 +353,40 @@ export function FoundationScreen() {
     deleteBnMutation.mutate(deletingBn.id)
   }
 
+  function handleCreateMs(bottleneckId: string, e: React.FormEvent) {
+    e.preventDefault()
+    const title = msForms[bottleneckId]?.trim()
+    if (!title) return
+    createMsMutation.mutate({
+      title,
+      bottleneck_id: bottleneckId,
+    })
+  }
+
+  function openEditMs(ms: FoundationMilestone) {
+    setEditingMs(ms)
+    setMsEditTitle(ms.title)
+  }
+
+  function handleUpdateMs() {
+    if (!editingMs || !msEditTitle.trim()) return
+    updateMsMutation.mutate({
+      id: editingMs.id,
+      data: { title: msEditTitle.trim() },
+    })
+  }
+
+  function handleDeleteMs() {
+    if (!deletingMs) return
+    deleteMsMutation.mutate(deletingMs.id)
+  }
+
   function getBottlenecksForGoal(goal_id: string) {
     return bottlenecks.filter((b) => b.goal_id === goal_id)
+  }
+
+  function getMilestonesForBottleneck(bottleneck_id: string) {
+    return milestones.filter((m) => m.bottleneck_id === bottleneck_id)
   }
 
   const isLoading = goalsLoading || bnsLoading
@@ -344,6 +464,17 @@ export function FoundationScreen() {
               onBnDelete={(bn) => setDeletingBn(bn)}
               bnFormValue={bnForms[goal.id] ?? ''}
               bnCreating={createBnMutation.isPending}
+              expandedBottleneckId={expandedBottleneckId}
+              onToggleBottleneck={setExpandedBottleneckId}
+              milestones={milestones}
+              onMsFormChange={(bnId, value) =>
+                setMsForms((prev) => ({ ...prev, [bnId]: value }))
+              }
+              onMsSubmit={handleCreateMs}
+              onMsEdit={openEditMs}
+              onMsDelete={(ms) => setDeletingMs(ms)}
+              msForms={msForms}
+              msCreating={createMsMutation.isPending}
             />
           ))
         )}
@@ -476,7 +607,7 @@ export function FoundationScreen() {
             <AlertDialogTitle>Delete Bottleneck</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete &ldquo;{deletingBn?.title}
-              &rdquo;? All tasks linked to this bottleneck will also be deleted.
+              &rdquo;? All tasks and milestones linked to this bottleneck will also be deleted.
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -488,6 +619,69 @@ export function FoundationScreen() {
               className="bg-destructive text-white hover:bg-destructive/90"
             >
               {deleteBnMutation.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog
+        open={!!editingMs}
+        onOpenChange={(open) => !open && setEditingMs(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Milestone</DialogTitle>
+            <DialogDescription>
+              Update the milestone details below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="ms-edit-title">Title</Label>
+              <Input
+                id="ms-edit-title"
+                value={msEditTitle}
+                onChange={(e) => setMsEditTitle(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingMs(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateMs}
+              disabled={
+                updateMsMutation.isPending || !msEditTitle.trim()
+              }
+            >
+              {updateMsMutation.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={!!deletingMs}
+        onOpenChange={(open) => !open && setDeletingMs(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Milestone</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &ldquo;{deletingMs?.title}
+              &rdquo;? Tasks linked to this milestone will be unlinked but not deleted.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteMs}
+              disabled={deleteMsMutation.isPending}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {deleteMsMutation.isPending ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -509,9 +703,18 @@ function GoalCard({
   onBnDelete,
   bnFormValue,
   bnCreating,
+  expandedBottleneckId,
+  onToggleBottleneck,
+  milestones,
+  onMsFormChange,
+  onMsSubmit,
+  onMsEdit,
+  onMsDelete,
+  msForms,
+  msCreating,
 }: {
   goal: GoalWithCount
-  bottlenecks: Bottleneck[]
+  bottlenecks: FoundationBottleneck[]
   isExpanded: boolean
   onToggle: () => void
   onEdit: () => void
@@ -522,7 +725,20 @@ function GoalCard({
   onBnDelete: (bn: Bottleneck) => void
   bnFormValue: string
   bnCreating: boolean
+  expandedBottleneckId: string | null
+  onToggleBottleneck: (id: string | null) => void
+  milestones: FoundationMilestone[]
+  onMsFormChange: (bnId: string, value: string) => void
+  onMsSubmit: (bnId: string, e: React.FormEvent) => void
+  onMsEdit: (ms: FoundationMilestone) => void
+  onMsDelete: (ms: FoundationMilestone) => void
+  msForms: Record<string, string>
+  msCreating: boolean
 }) {
+  function getMilestonesForBottleneck(bottleneck_id: string) {
+    return milestones.filter((m) => m.bottleneck_id === bottleneck_id)
+  }
+
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
       <div className="rounded-lg border border-border/60 bg-card/50 overflow-hidden transition-colors hover:bg-card">
@@ -627,45 +843,195 @@ function GoalCard({
             ) : (
               <div className="space-y-1">
                 {bottlenecks.map((bn) => (
-                  <div
+                  <BottleneckCard
                     key={bn.id}
-                    className="group/bn flex items-center gap-2 pl-5 pr-2 py-2 rounded-md hover:bg-muted/60 transition-colors"
+                    bottleneck={bn}
+                    milestones={getMilestonesForBottleneck(bn.id)}
+                    isExpanded={expandedBottleneckId === bn.id}
+                    onToggle={() =>
+                      onToggleBottleneck(
+                        expandedBottleneckId === bn.id ? null : bn.id
+                      )
+                    }
+                    onEdit={() => onBnEdit(bn)}
+                    onDelete={() => onBnDelete(bn)}
+                    msFormValue={msForms[bn.id] ?? ''}
+                    onMsFormChange={(value) => onMsFormChange(bn.id, value)}
+                    onMsSubmit={(e) => onMsSubmit(bn.id, e)}
+                    onMsEdit={onMsEdit}
+                    onMsDelete={onMsDelete}
+                    msCreating={msCreating}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  )
+}
+
+function BottleneckCard({
+  bottleneck,
+  milestones,
+  isExpanded,
+  onToggle,
+  onEdit,
+  onDelete,
+  msFormValue,
+  onMsFormChange,
+  onMsSubmit,
+  onMsEdit,
+  onMsDelete,
+  msCreating,
+}: {
+  bottleneck: FoundationBottleneck
+  milestones: FoundationMilestone[]
+  isExpanded: boolean
+  onToggle: () => void
+  onEdit: () => void
+  onDelete: () => void
+  msFormValue: string
+  onMsFormChange: (value: string) => void
+  onMsSubmit: (e: React.FormEvent) => void
+  onMsEdit: (ms: FoundationMilestone) => void
+  onMsDelete: (ms: FoundationMilestone) => void
+  msCreating: boolean
+}) {
+  return (
+    <Collapsible open={isExpanded} onOpenChange={onToggle}>
+      <div className="group/bn rounded-md transition-colors hover:bg-muted/60">
+        <div className="flex items-center gap-2 pl-5 pr-2 py-2">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="icon" className="size-5 shrink-0">
+              {isExpanded ? (
+                <ChevronDown className="size-3" />
+              ) : (
+                <ChevronRight className="size-3" />
+              )}
+              <span className="sr-only">
+                {isExpanded ? 'Collapse' : 'Expand'}
+              </span>
+            </Button>
+          </CollapsibleTrigger>
+
+          <GripVertical className="size-3 text-muted-foreground/40 shrink-0" />
+
+          <div className="flex-1 min-w-0">
+            <span className="text-sm truncate block">{bottleneck.title}</span>
+            {bottleneck.description && (
+              <span className="text-xs text-muted-foreground truncate block">
+                {bottleneck.description}
+              </span>
+            )}
+          </div>
+
+          {(bottleneck._count.milestones ?? 0) > 0 && (
+            <Badge
+              variant="secondary"
+              className="text-[10px] px-1.5 py-0 h-4 shrink-0"
+            >
+              {bottleneck._count.milestones}{' '}
+              {bottleneck._count.milestones === 1 ? 'milestone' : 'milestones'}
+            </Badge>
+          )}
+
+          {(bottleneck._count.tasks ?? 0) > 0 && (
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1.5 py-0 h-4 shrink-0"
+            >
+              {bottleneck._count.tasks}
+            </Badge>
+          )}
+
+          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover/bn:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6"
+              onClick={onEdit}
+            >
+              <Pencil className="size-3" />
+              <span className="sr-only">Edit bottleneck</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6 text-destructive hover:text-destructive"
+              onClick={onDelete}
+            >
+              <Trash2 className="size-3" />
+              <span className="sr-only">Delete bottleneck</span>
+            </Button>
+          </div>
+        </div>
+
+        <CollapsibleContent>
+          <div className="border-t border-border/30 bg-muted/30 ml-5 mr-2 pl-4 pr-2 py-2 space-y-1 rounded-sm">
+            <form
+              onSubmit={onMsSubmit}
+              className="flex gap-2"
+            >
+              <Input
+                placeholder="Add a milestone..."
+                value={msFormValue}
+                onChange={(e) => onMsFormChange(e.target.value)}
+                className="flex-1 h-8 text-xs"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                className="h-8 text-xs"
+                disabled={!msFormValue.trim() || msCreating}
+              >
+                <Plus className="size-3" />
+                Add
+              </Button>
+            </form>
+
+            {milestones.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2">
+                No milestones yet. Add one above.
+              </p>
+            ) : (
+              <div className="space-y-0.5">
+                {milestones.map((ms) => (
+                  <div
+                    key={ms.id}
+                    className="group/ms flex items-center gap-2 pl-1 pr-1 py-1.5 rounded-sm hover:bg-muted/60 transition-colors"
                   >
-                    <GripVertical className="size-3 text-muted-foreground/40 shrink-0" />
+                    <Flag className="size-3 text-muted-foreground/60 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm truncate block">{bn.title}</span>
-                      {bn.description && (
-                        <span className="text-xs text-muted-foreground truncate block">
-                          {bn.description}
-                        </span>
-                      )}
+                      <span className="text-xs truncate block">{ms.title}</span>
                     </div>
-                    {bn._count && bn._count.tasks > 0 && (
+                    {ms._count.tasks > 0 && (
                       <Badge
                         variant="outline"
                         className="text-[10px] px-1.5 py-0 h-4 shrink-0"
                       >
-                        {bn._count.tasks}
+                        {ms._count.tasks}
                       </Badge>
                     )}
-                    <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover/bn:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover/ms:opacity-100 transition-opacity">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-6"
-                        onClick={() => onBnEdit(bn)}
+                        className="size-5"
+                        onClick={() => onMsEdit(ms)}
                       >
-                        <Pencil className="size-3" />
-                        <span className="sr-only">Edit bottleneck</span>
+                        <Pencil className="size-2.5" />
+                        <span className="sr-only">Edit milestone</span>
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-6 text-destructive hover:text-destructive"
-                        onClick={() => onBnDelete(bn)}
+                        className="size-5 text-destructive hover:text-destructive"
+                        onClick={() => onMsDelete(ms)}
                       >
-                        <Trash2 className="size-3" />
-                        <span className="sr-only">Delete bottleneck</span>
+                        <Trash2 className="size-2.5" />
+                        <span className="sr-only">Delete milestone</span>
                       </Button>
                     </div>
                   </div>

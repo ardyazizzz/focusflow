@@ -11,19 +11,21 @@ import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
 import { normalizeCustomValues } from '@/lib/icons'
 import type { CoachMessage } from '@/store/use-app-store'
-import type { Goal, Bottleneck, Task, CustomLabel, CustomLabelOption } from '@/types'
+import type { Goal, Bottleneck, Milestone, Task, CustomLabel, CustomLabelOption } from '@/types'
 
 async function fetchCoachContext() {
-  const [goalsResult, bottlenecksResult, tasksResult, labelsResult] =
+  const [goalsResult, bottlenecksResult, milestonesResult, tasksResult, labelsResult] =
     await Promise.all([
       supabase.from('goals').select('*, bottlenecks:bottlenecks(count), tasks:tasks(count)').order('created_at', { ascending: false }),
       supabase.from('bottlenecks').select('*, goal:goals(id, title), tasks:tasks(count)').order('created_at', { ascending: false }),
-      supabase.from('tasks').select('*, goal:goals(id, title), bottleneck:bottlenecks(id, title), custom_values').order('created_at', { ascending: false }),
+      supabase.from('milestones').select('*, bottlenecks:bottleneck_id').order('created_at', { ascending: false }),
+      supabase.from('tasks').select('*, goal:goals(id, title), bottleneck:bottlenecks(id, title), milestone:milestones(id, title), custom_values').order('created_at', { ascending: false }),
       supabase.from('custom_labels').select('*').order('sort_order', { ascending: true }),
     ])
 
   const goals = (goalsResult.data ?? []) as Goal[]
   const bottlenecks = (bottlenecksResult.data ?? []) as Bottleneck[]
+  const milestones = (milestonesResult.data ?? []) as Milestone[]
   const tasks = (tasksResult.data ?? []) as unknown as Task[]
   const labels = (labelsResult.data ?? []) as CustomLabel[]
 
@@ -44,7 +46,7 @@ async function fetchCoachContext() {
     return parts.length > 0 ? ` [${parts.join(' | ')}]` : ''
   }
 
-  return { labels, goals, bottlenecks, pendingTasks, completedTasks, formatCustomValues }
+  return { labels, goals, bottlenecks, milestones, pendingTasks, completedTasks, formatCustomValues }
 }
 
 function buildSystemPrompt(ctx: Awaited<ReturnType<typeof fetchCoachContext>>) {
@@ -54,6 +56,9 @@ ${ctx.goals.map((g) => `- **${g.title}**${g.description ? `: ${g.description}` :
 
 ### Bottlenecks (${ctx.bottlenecks.length} total)
 ${ctx.bottlenecks.map((b) => `- **${b.title}**${b.description ? `: ${b.description}` : ''} (Goal: ${b.goal?.title})`).join('\n') || '(No bottlenecks yet)'}
+
+### Milestones (${ctx.milestones.length} total)
+${ctx.milestones.map((m) => `- **${m.title}** (Bottleneck: ${ctx.bottlenecks.find(b => b.id === m.bottleneck_id)?.title ?? '—'})`).join('\n') || '(No milestones yet)'}
 
 ### Custom Labels
 ${ctx.labels.length > 0 ? ctx.labels.map((l) => `- **${l.name}**: ${(l.options ?? []).map((o) => o.value).join(', ')}`).join('\n') : '(No custom labels)'}

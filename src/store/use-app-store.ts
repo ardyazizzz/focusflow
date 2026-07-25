@@ -27,6 +27,7 @@ export interface AppState {
   pomodoroState: PomodoroState;
   coachMessages: CoachMessage[];
   foundationExpandedGoal: string | null;
+  foundationExpandedBottleneck: string | null;
 
   // ── Navigation ───────────────────────────────────────────────────────────
   setActiveTab: (tab: AppTab) => void;
@@ -45,6 +46,7 @@ export interface AppState {
 
   // ── Foundation ───────────────────────────────────────────────────────────
   setFoundationExpandedGoal: (goalId: string | null) => void;
+  setFoundationExpandedBottleneck: (bottleneckId: string | null) => void;
 }
 
 // ── Initial values ────────────────────────────────────────────────────────────
@@ -63,6 +65,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   pomodoroState: { ...INITIAL_POMODORO },
   coachMessages: [],
   foundationExpandedGoal: null,
+  foundationExpandedBottleneck: null,
 
   // ── Navigation ───────────────────────────────────────────────────────────
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -115,4 +118,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ── Foundation ───────────────────────────────────────────────────────────
   setFoundationExpandedGoal: (goalId) =>
     set({ foundationExpandedGoal: goalId }),
+  setFoundationExpandedBottleneck: (bottleneckId) =>
+    set({ foundationExpandedBottleneck: bottleneckId }),
 }));

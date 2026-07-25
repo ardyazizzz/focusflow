@@ -15,6 +15,15 @@ export interface Bottleneck {
   goal?: { id: string; title: string };
   created_at: string;
   updated_at: string;
+  _count?: { tasks: number; milestones: number };
+}
+
+export interface Milestone {
+  id: string;
+  title: string;
+  bottleneck_id: string;
+  created_at: string;
+  updated_at: string;
   _count?: { tasks: number };
 }
 
@@ -46,6 +55,7 @@ export interface Task {
   title: string;
   goal_id: string | null;
   bottleneck_id: string | null;
+  milestone_id: string | null;
   deadline: string | null;
   notes: string | null;
   status: string;
@@ -56,6 +66,7 @@ export interface Task {
   custom_values: Record<string, string[]> | null;
   goal: { id: string; title: string } | null;
   bottleneck: { id: string; title: string } | null;
+  milestone: { id: string; title: string } | null;
 }
 
 export interface DimensionsData {

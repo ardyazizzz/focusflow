@@ -32,11 +32,20 @@ CREATE TABLE execution_dimension_options (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE milestones (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  title TEXT NOT NULL,
+  bottleneck_id TEXT NOT NULL REFERENCES bottlenecks(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE tasks (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   title TEXT NOT NULL,
   goal_id TEXT REFERENCES goals(id) ON DELETE CASCADE,
   bottleneck_id TEXT REFERENCES bottlenecks(id) ON DELETE CASCADE,
+  milestone_id TEXT REFERENCES milestones(id) ON DELETE SET NULL,
   priority_option_id TEXT REFERENCES execution_dimension_options(id),
   impact_option_id TEXT REFERENCES execution_dimension_options(id),
   clarity_option_id TEXT REFERENCES execution_dimension_options(id),
@@ -67,18 +76,21 @@ $$ LANGUAGE plpgsql SECURITY INVOKER;
 
 CREATE TRIGGER set_goals_updated_at BEFORE UPDATE ON goals FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER set_bottlenecks_updated_at BEFORE UPDATE ON bottlenecks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER set_milestones_updated_at BEFORE UPDATE ON milestones FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER set_execution_dimension_options_updated_at BEFORE UPDATE ON execution_dimension_options FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER set_tasks_updated_at BEFORE UPDATE ON tasks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER set_app_settings_updated_at BEFORE UPDATE ON app_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 GRANT ALL ON goals TO anon, authenticated;
 GRANT ALL ON bottlenecks TO anon, authenticated;
+GRANT ALL ON milestones TO anon, authenticated;
 GRANT ALL ON execution_dimension_options TO anon, authenticated;
 GRANT ALL ON tasks TO anon, authenticated;
 GRANT ALL ON app_settings TO anon, authenticated;
 
 ALTER TABLE goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bottlenecks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE execution_dimension_options ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
@@ -87,6 +99,8 @@ CREATE POLICY "anon_all_goals" ON goals FOR ALL TO anon USING (true) WITH CHECK 
 CREATE POLICY "auth_all_goals" ON goals FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "anon_all_bottlenecks" ON bottlenecks FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "auth_all_bottlenecks" ON bottlenecks FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "anon_all_milestones" ON milestones FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "auth_all_milestones" ON milestones FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "anon_all_execution_dimension_options" ON execution_dimension_options FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "auth_all_execution_dimension_options" ON execution_dimension_options FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "anon_all_tasks" ON tasks FOR ALL TO anon USING (true) WITH CHECK (true);
