@@ -222,6 +222,16 @@ The **Edit Task** dialog (`backlog-screen.tsx`) has `onInteractOutside` and `onE
 - Does NOT handle `*` (star) as bullet to avoid conflicting with `**bold**`
 - Used in backlog-screen.tsx, focus-screen.tsx, and coach-screen.tsx wherever `ReactMarkdown` renders user text
 
+### 15. Hover-revealed action buttons + mobile focus fix
+
+Backlog action buttons (Complete/Edit/Delete) use `opacity-0 group-hover:opacity-100 group-focus:opacity-100` for hover-reveal.
+
+To prevent accidental clicks when invisible, they also have `pointer-events-none group-hover:pointer-events-auto group-focus:pointer-events-auto`. However, on mobile, a tap on a div with only `tabIndex={0}` does NOT reliably focus it — the `group-focus` would never activate.
+
+**Fix:** Each card div has an empty `onClick={() => {}}` handler. This tells mobile browsers the element is interactive, so it receives focus from a tap. The two-tap pattern on phone: first tap focuses the card (revealing buttons), second tap clicks the button.
+
+On desktop, `onClick={() => {}}` is harmless — hover reveals buttons and they're immediately clickable via `group-hover:pointer-events-auto`.
+
 ---
 
 ## Shared Utility: `src/lib/icons.ts`
