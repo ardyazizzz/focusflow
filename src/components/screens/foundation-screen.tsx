@@ -428,7 +428,7 @@ export function FoundationScreen() {
         </Button>
       </form>
 
-      <div className="max-h-[calc(100vh-280px)] min-h-0 overflow-y-auto pr-1 space-y-2">
+      <div className="max-h-[calc(100vh-350px)] min-h-0 overflow-y-auto pr-1 space-y-2">
         {isLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (

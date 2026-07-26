@@ -437,7 +437,7 @@ export function BacklogScreen() {
         )}
       </div>
 
-      <div className="max-h-[calc(100vh-260px)] min-h-0 overflow-y-auto pr-1 space-y-2">
+      <div className="max-h-[calc(100vh-330px)] min-h-0 overflow-y-auto pr-1 space-y-2">
         {tasksLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
