@@ -559,6 +559,8 @@ export function BacklogScreen() {
         )}
       </div>
 
+      <div className="h-32" />
+
       <Dialog
         open={!!editingTask}
         onOpenChange={(open) => {

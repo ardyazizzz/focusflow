@@ -53,7 +53,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-    <div className="min-h-screen flex flex-col bg-white font-sans antialiased">
+    <div className="h-screen flex flex-col bg-white font-sans antialiased">
       <Toaster position="top-center" richColors />
 
       {/* Header */}
