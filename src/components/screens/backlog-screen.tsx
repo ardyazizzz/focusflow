@@ -529,7 +529,7 @@ export function BacklogScreen() {
                       <Separator className="flex-1" />
                     </div>
                     <CollapsibleContent className="space-y-2">
-                      {displayedTasks.slice(firstCompletedIdx).map((task, i) => (
+                      {completedOpen && displayedTasks.slice(firstCompletedIdx).map((task, i) => (
                         <TaskCard
                           key={task.id}
                           task={task}
