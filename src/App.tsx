@@ -43,7 +43,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-    <div className="min-h-screen flex flex-col bg-white font-sans antialiased">
+    <div className="h-screen flex flex-col bg-white font-sans antialiased">
       <Toaster position="top-center" richColors />
 
       {/* Header */}
@@ -56,7 +56,7 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden">
+      <main className="flex-1 overflow-hidden">
         <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
           {screenComponents[activeTab]}
         </div>
