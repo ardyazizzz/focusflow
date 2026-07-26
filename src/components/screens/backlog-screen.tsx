@@ -559,7 +559,7 @@ export function BacklogScreen() {
         )}
       </div>
 
-      <div className="h-32" />
+      <div className="h-28" />
 
       <Dialog
         open={!!editingTask}
