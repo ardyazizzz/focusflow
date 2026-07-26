@@ -13,6 +13,8 @@ import {
   Target,
   TriangleAlert,
   Award,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
@@ -48,6 +50,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Separator } from '@/components/ui/separator'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import { useAppStore } from '@/store/use-app-store'
 import { supabase } from '@/lib/supabase'
 import { CUSTOM_LABEL_ICONS, fetchCustomLabels, normalizeCustomValues } from '@/lib/icons'
@@ -81,6 +88,7 @@ export function BacklogScreen() {
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [editForm, setEditForm] = useState<EditFormState | null>(null)
   const [deletingTask, setDeletingTask] = useState<Task | null>(null)
+  const [completedOpen, setCompletedOpen] = useState(false)
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: ['tasks'],
@@ -180,6 +188,18 @@ export function BacklogScreen() {
     })
     return matchesSearch && matchesStatus && matchesLabels && matchesQueue && matchesMilestone
   })
+
+  const displayedTasks: Task[] = statusFilter === 'all'
+    ? [...filteredTasks].sort((a, b) => {
+        if (a.status === 'completed' && b.status === 'pending') return 1
+        if (a.status === 'pending' && b.status === 'completed') return -1
+        return 0
+      })
+    : filteredTasks
+
+  const firstCompletedIdx = statusFilter === 'all'
+    ? displayedTasks.findIndex((t) => t.status === 'completed')
+    : -1
 
   const bottlenecksForGoal = allBottlenecks.filter(
     (b) => b.goal_id === editForm?.goal_id
@@ -433,39 +453,108 @@ export function BacklogScreen() {
           </div>
         ) : (
           <div className="space-y-2">
-            {filteredTasks.map((task, i) => {
-              const prevQueued = i > 0 && filteredTasks[i-1].queue_order < 9999
-              const thisUnqueued = task.queue_order >= 9999
-              return (
-                <React.Fragment key={task.id}>
-                  {prevQueued && thisUnqueued && <Separator className="my-2" />}
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    labels={labels}
-                    onEdit={() => openEdit(task)}
-                    onDelete={() => setDeletingTask(task)}
-                    onReopen={async () => {
-                      await supabase.from('tasks').update({ status: 'pending', completed_at: null }).eq('id', task.id)
-                      queryClient.invalidateQueries({ queryKey: ['tasks'] })
-                    }}
-                    onComplete={async () => {
-                      await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString(), queue_order: 9999 }).eq('id', task.id)
-                      queryClient.invalidateQueries({ queryKey: ['tasks'] })
-                      toast.success('Task completed')
-                    }}
-                    formatDate={formatDate}
-                    onQueueChange={async (newOrder) => {
-                      queryClient.setQueryData(['tasks'], (old: Task[] | undefined) =>
-                        old?.map(t => t.id === task.id ? { ...t, queue_order: newOrder } : t) ?? []
-                      )
-                      await supabase.from('tasks').update({ queue_order: newOrder }).eq('id', task.id)
-                      queryClient.invalidateQueries({ queryKey: ['tasks'] })
-                    }}
-                  />
-                </React.Fragment>
-              )
-            })}
+            {firstCompletedIdx < 0 ? (
+              displayedTasks.map((task, i) => {
+                const prevQueued = i > 0 && displayedTasks[i-1].queue_order < 9999
+                const thisUnqueued = task.queue_order >= 9999
+                return (
+                  <React.Fragment key={task.id}>
+                    {prevQueued && thisUnqueued && <Separator className="my-2" />}
+                    <TaskCard
+                      task={task}
+                      labels={labels}
+                      onEdit={() => openEdit(task)}
+                      onDelete={() => setDeletingTask(task)}
+                      onReopen={async () => {
+                        await supabase.from('tasks').update({ status: 'pending', completed_at: null }).eq('id', task.id)
+                        queryClient.invalidateQueries({ queryKey: ['tasks'] })
+                      }}
+                      onComplete={async () => {
+                        await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString(), queue_order: 9999 }).eq('id', task.id)
+                        queryClient.invalidateQueries({ queryKey: ['tasks'] })
+                        toast.success('Task completed')
+                      }}
+                      formatDate={formatDate}
+                      onQueueChange={async (newOrder) => {
+                        queryClient.setQueryData(['tasks'], (old: Task[] | undefined) =>
+                          old?.map(t => t.id === task.id ? { ...t, queue_order: newOrder } : t) ?? []
+                        )
+                        await supabase.from('tasks').update({ queue_order: newOrder }).eq('id', task.id)
+                        queryClient.invalidateQueries({ queryKey: ['tasks'] })
+                      }}
+                    />
+                  </React.Fragment>
+                )
+              })
+            ) : (
+              <>
+                {displayedTasks.slice(0, firstCompletedIdx).map((task, i) => {
+                  const prevQueued = i > 0 && displayedTasks[i-1].queue_order < 9999
+                  const thisUnqueued = task.queue_order >= 9999
+                  return (
+                    <React.Fragment key={task.id}>
+                      {prevQueued && thisUnqueued && <Separator className="my-2" />}
+                      <TaskCard
+                        task={task}
+                        labels={labels}
+                        onEdit={() => openEdit(task)}
+                        onDelete={() => setDeletingTask(task)}
+                        onComplete={async () => {
+                          await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString(), queue_order: 9999 }).eq('id', task.id)
+                          queryClient.invalidateQueries({ queryKey: ['tasks'] })
+                          toast.success('Task completed')
+                        }}
+                        formatDate={formatDate}
+                        onQueueChange={async (newOrder) => {
+                          queryClient.setQueryData(['tasks'], (old: Task[] | undefined) =>
+                            old?.map(t => t.id === task.id ? { ...t, queue_order: newOrder } : t) ?? []
+                          )
+                          await supabase.from('tasks').update({ queue_order: newOrder }).eq('id', task.id)
+                          queryClient.invalidateQueries({ queryKey: ['tasks'] })
+                        }}
+                      />
+                    </React.Fragment>
+                  )
+                })}
+                {firstCompletedIdx < displayedTasks.length && (
+                  <Collapsible open={completedOpen} onOpenChange={setCompletedOpen}>
+                    <div className="flex items-center gap-2 py-1">
+                      <Separator className="flex-1" />
+                      <CollapsibleTrigger asChild>
+                        <button className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium shrink-0">
+                          {completedOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+                          Completed ({displayedTasks.length - firstCompletedIdx})
+                        </button>
+                      </CollapsibleTrigger>
+                      <Separator className="flex-1" />
+                    </div>
+                    <CollapsibleContent className="space-y-2">
+                      {displayedTasks.slice(firstCompletedIdx).map((task, i) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          labels={labels}
+                          onEdit={() => openEdit(task)}
+                          onDelete={() => setDeletingTask(task)}
+                          onReopen={async () => {
+                            await supabase.from('tasks').update({ status: 'pending', completed_at: null }).eq('id', task.id)
+                            queryClient.invalidateQueries({ queryKey: ['tasks'] })
+                          }}
+                          formatDate={formatDate}
+                          onQueueChange={async (newOrder) => {
+                            queryClient.setQueryData(['tasks'], (old: Task[] | undefined) =>
+                              old?.map(t => t.id === task.id ? { ...t, queue_order: newOrder } : t) ?? []
+                            )
+                            await supabase.from('tasks').update({ queue_order: newOrder }).eq('id', task.id)
+                            queryClient.invalidateQueries({ queryKey: ['tasks'] })
+                          }}
+                        />
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>
