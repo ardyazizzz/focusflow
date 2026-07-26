@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { Sun, PlusCircle, Inbox, LayoutGrid, Sparkles, Settings } from 'lucide-react'
@@ -40,6 +40,16 @@ export default function App() {
 
   const activeTab = useAppStore((s) => s.activeTab)
   const setActiveTab = useAppStore((s) => s.setActiveTab)
+
+  useEffect(() => {
+    const html = document.documentElement;
+    if (activeTab === 'backlog') {
+      html.style.overflow = 'hidden';
+    } else {
+      html.style.overflow = '';
+    }
+    return () => { html.style.overflow = ''; };
+  }, [activeTab]);
 
   return (
     <QueryClientProvider client={queryClient}>
