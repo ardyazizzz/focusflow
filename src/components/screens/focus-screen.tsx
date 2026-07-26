@@ -286,18 +286,18 @@ export function FocusScreen() {
           {activeTask ? (
             <>
               {pomodoroState.isRunning ? (
-                <Button variant="outline" size="sm" onClick={pausePomodoro} className="gap-1.5 rounded-xl">
+                <Button size="sm" onClick={pausePomodoro} className="gap-1.5 rounded-xl flex-1">
                   <Pause className="size-3.5" /> Pause
                 </Button>
               ) : (
-                <Button variant="outline" size="sm" onClick={resumePomodoro} className="gap-1.5 rounded-xl">
+                <Button size="sm" onClick={resumePomodoro} className="gap-1.5 rounded-xl flex-1">
                   <Play className="size-3.5" /> Resume
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={stopPomodoro} className="gap-1.5 rounded-xl">
                 <Square className="size-3.5" /> Stop
               </Button>
-              <Button size="sm" onClick={() => completeMutation.mutate(activeTask.id)} className="gap-1.5 rounded-xl flex-1">
+              <Button variant="outline" size="sm" onClick={() => completeMutation.mutate(activeTask.id)} className="gap-1.5 rounded-xl">
                 <CheckCircle2 className="size-3.5" /> Complete
               </Button>
             </>
